@@ -192,7 +192,7 @@ function renderSugestoes() {
 
 // ===== EXPORT / IMPORT =====
 function exportar() {
-  const data = { itens, orcamento, timestamp };
+  const data = { itens, orcamento, timestamp, catalogo, historicoFeiras };
 
   const blob = new Blob([JSON.stringify(data, null, 2)], {
     type: "application/json"
@@ -216,15 +216,26 @@ function importar(e) {
 
       itens = data.itens || [];
       orcamento = data.orcamento || 0;
+      historicoFeiras = data.historicoFeiras || historicoFeiras;
+
+      // compatibilidade com backups antigos (sem catálogo):
+      // reconstrói o catálogo a partir dos itens importados
+      if (data.catalogo) {
+        catalogo = data.catalogo;
+      } else {
+        itens.forEach(atualizarCatalogo);
+      }
 
       salvar();
       render();
+      alert("Importado com sucesso!");
     } catch {
       alert("Arquivo inválido");
     }
   };
 
   reader.readAsText(file);
+  e.target.value = "";
 }
 
 // ===== FINALIZAR FEIRA (arquiva sem apagar catálogo/histórico) =====
