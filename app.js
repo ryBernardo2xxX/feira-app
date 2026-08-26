@@ -348,7 +348,7 @@ function render() {
     const p = (total / orcamento) * 100;
     const bar = document.getElementById("progress");
 
-    bar.style.width = p + "%";
+    bar.style.width = Math.min(p, 100) + "%";
 
     if (p < 70) bar.style.background = "green";
     else if (p < 100) bar.style.background = "orange";
