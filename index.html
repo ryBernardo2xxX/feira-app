@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Feira Inteligente</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+<div class="container">
+<h1>🛒 Feira Inteligente</h1>
+<p id="timestamp"></p>
+<!-- ORÇAMENTO -->
+<h2>💰 Orçamento</h2>
+<input type="number" id="orcamento" placeholder="Orçamento">
+<button onclick="setOrcamento()">Salvar</button>
+<div class="progress-bar">
+  <div id="progress"></div>
+</div>
+<div>Total: R$ <span id="total">0.00</span></div>
+<!-- BACKUP -->
+<h2>💾 Backup</h2>
+<button onclick="exportar()">Exportar JSON</button>
+<input type="file" onchange="importar(event)">
+<!-- COMPRAS -->
+<h2>🧾 Compras</h2>
+<input id="nome" placeholder="Produto">
+<input id="preco" type="number" placeholder="Preço">
+<input id="quantidade" type="number" placeholder="Qtd">
+<!-- opcional -->
+<input id="categoria" placeholder="Categoria (opcional)">
+<button onclick="addItem()">Adicionar</button>
+<div id="lista"></div>
+<button onclick="resetar()">🔄 Resetar</button>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

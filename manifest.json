@@ -1,0 +1,8 @@
+{
+  "name": "Feira Inteligente",
+  "short_name": "Feira",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2ecc71"
+}
