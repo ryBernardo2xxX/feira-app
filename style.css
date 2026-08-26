@@ -18,6 +18,10 @@ input, button {
   margin: 6px 0;
   font-size: 16px;
   border-radius: 8px;
+  box-sizing: border-box;
+}
+input {
+  border: 1px solid #ccc;
 }
 /* botão mais clicável */
 button {
@@ -53,12 +57,12 @@ button {
   font-size: 18px;
   cursor: pointer;
 }
-/* categoria discreta */
+/* categoria discreta (usada no histórico de feiras, ex: "36 itens") */
 .categoria {
   font-size: 12px;
   color: #666;
 }
-/* categoria discreta (título de grupo) */
+/* categoria discreta (título de grupo na lista de compras) */
 .categoria-titulo {
   font-size: 13px;
   font-weight: bold;
@@ -124,6 +128,7 @@ button {
   width: 0%;
   border-radius: 10px;
   background: green;
+  transition: width 0.3s ease;
 }
 /* 🔥 ajuste específico mobile */
 @media (max-width: 480px) {
