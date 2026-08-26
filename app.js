@@ -1,15 +1,41 @@
 let itens = JSON.parse(localStorage.getItem("itens")) || [];
 let orcamento = parseFloat(localStorage.getItem("orcamento")) || 0;
 let timestamp = localStorage.getItem("timestamp") || "";
+let catalogo = JSON.parse(localStorage.getItem("catalogo")) || {};
+
+// ===== HELPERS =====
+function normalizar(nome) {
+  return nome.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function limparNome(nome) {
+  return nome.trim().replace(/\s+/g, " ");
+}
 
 // ===== STORAGE =====
 function salvar() {
   localStorage.setItem("itens", JSON.stringify(itens));
   localStorage.setItem("orcamento", orcamento);
+  localStorage.setItem("catalogo", JSON.stringify(catalogo));
 
   const now = new Date().toLocaleString();
   localStorage.setItem("timestamp", now);
   timestamp = now;
+}
+
+// ===== CATÁLOGO =====
+// Guarda, por produto, o último preço, categoria e quantas vezes já foi comprado.
+// É a base de dados que alimenta autocomplete, alerta de preço e sugestões.
+function atualizarCatalogo(item) {
+  const chave = normalizar(item.nome);
+  const anterior = catalogo[chave];
+
+  catalogo[chave] = {
+    nome: item.nome,
+    ultimoPreco: item.preco,
+    categoria: item.categoria || (anterior ? anterior.categoria : null),
+    vezesComprado: (anterior?.vezesComprado || 0) + 1
+  };
 }
 
 // ===== ORÇAMENTO =====
@@ -26,19 +52,22 @@ function addItem() {
   const quantidadeInput = document.getElementById("quantidade");
   const categoriaInput = document.getElementById("categoria");
 
-  const nome = nomeInput.value;
+  const nome = limparNome(nomeInput.value);
   const preco = parseFloat(precoInput.value);
   const quantidade = parseInt(quantidadeInput.value);
-  const categoria = categoriaInput.value;
+  const categoria = categoriaInput.value.trim();
 
   if (!nome || isNaN(preco) || isNaN(quantidade)) return;
 
-  itens.push({
+  const novoItem = {
     nome,
     preco,
     quantidade,
     categoria: categoria || null
-  });
+  };
+
+  itens.push(novoItem);
+  atualizarCatalogo(novoItem);
 
   // 🔥 LIMPAR CAMPOS (aqui está o ganho real)
   nomeInput.value = "";
