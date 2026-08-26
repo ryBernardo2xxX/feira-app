@@ -25,7 +25,9 @@
 <input type="file" onchange="importar(event)">
 <!-- COMPRAS -->
 <h2>🧾 Compras</h2>
-<input id="nome" placeholder="Produto">
+<input id="nome" placeholder="Produto" list="sugestoes-produtos" oninput="preencherAuto()">
+<datalist id="sugestoes-produtos"></datalist>
+<p id="hint-produto" class="hint" style="display:none"></p>
 <input id="preco" type="number" placeholder="Preço">
 <input id="quantidade" type="number" placeholder="Qtd">
 <!-- opcional -->

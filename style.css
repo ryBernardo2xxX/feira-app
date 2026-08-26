@@ -50,6 +50,18 @@ button {
   font-size: 12px;
   color: #666;
 }
+/* variação de preço */
+.variacao {
+  font-size: 12px;
+  font-weight: bold;
+  color: #e67e22;
+}
+/* dica de autocomplete */
+.hint {
+  font-size: 12px;
+  color: #666;
+  margin: -4px 0 4px 0;
+}
 /* barra */
 .progress-bar {
   background: #ddd;

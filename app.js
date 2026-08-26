@@ -45,6 +45,48 @@ function setOrcamento() {
   render();
 }
 
+function calcularVariacao(nome, precoNovo) {
+  const chave = normalizar(nome);
+  const anterior = catalogo[chave];
+  if (!anterior) return null;
+
+  const diff = precoNovo - anterior.ultimoPreco;
+  if (Math.abs(diff) < 0.01) return null;
+
+  return {
+    valor: diff,
+    texto: (diff > 0 ? "🔺 +R$ " : "🔻 -R$ ") + Math.abs(diff).toFixed(2) + " vs última compra"
+  };
+}
+
+function popularDatalist() {
+  const dl = document.getElementById("sugestoes-produtos");
+  dl.innerHTML = Object.values(catalogo)
+    .map(i => `<option value="${i.nome}">`)
+    .join("");
+}
+
+// Preenche preço/categoria automaticamente ao digitar um nome já conhecido
+function preencherAuto() {
+  const nomeInput = document.getElementById("nome");
+  const precoInput = document.getElementById("preco");
+  const categoriaInput = document.getElementById("categoria");
+
+  const chave = normalizar(nomeInput.value);
+  const item = catalogo[chave];
+
+  const hint = document.getElementById("hint-produto");
+
+  if (item) {
+    if (!precoInput.value) precoInput.value = item.ultimoPreco;
+    if (!categoriaInput.value && item.categoria) categoriaInput.value = item.categoria;
+    hint.innerText = `🔁 comprado ${item.vezesComprado}x antes · último preço R$ ${item.ultimoPreco.toFixed(2)}`;
+    hint.style.display = "block";
+  } else {
+    hint.style.display = "none";
+  }
+}
+
 // ===== COMPRA =====
 function addItem() {
   const nomeInput = document.getElementById("nome");
@@ -59,11 +101,14 @@ function addItem() {
 
   if (!nome || isNaN(preco) || isNaN(quantidade)) return;
 
+  const variacao = calcularVariacao(nome, preco);
+
   const novoItem = {
     nome,
     preco,
     quantidade,
-    categoria: categoria || null
+    categoria: categoria || null,
+    variacao: variacao ? variacao.texto : null
   };
 
   itens.push(novoItem);
@@ -74,6 +119,7 @@ function addItem() {
   precoInput.value = "";
   quantidadeInput.value = "";
   categoriaInput.value = "";
+  document.getElementById("hint-produto").style.display = "none";
 
   // opcional: focar no primeiro campo automaticamente
   nomeInput.focus();
@@ -157,6 +203,7 @@ function render() {
         <div class="remover" onclick="remover(${i})">❌</div>
       </div>
       ${item.categoria ? `<div class="categoria">${item.categoria}</div>` : ""}
+      ${item.variacao ? `<div class="variacao">${item.variacao}</div>` : ""}
     </div>
   `;
   });
@@ -173,6 +220,8 @@ function render() {
     else if (p < 100) bar.style.background = "orange";
     else bar.style.background = "red";
   }
+
+  popularDatalist();
 }
 
 // ===== PWA =====
