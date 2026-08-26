@@ -25,6 +25,14 @@ button {
   color: white;
   border: none;
   font-weight: bold;
+  cursor: pointer;
+}
+.botao-secundario {
+  background: #34495e;
+}
+.botao-perigo {
+  background: #e74c3c;
+  margin-top: 20px;
 }
 /* lista */
 .item {
@@ -85,6 +93,12 @@ button {
   font-size: 13px;
   color: #888;
   font-style: italic;
+}
+/* histórico */
+.historico-item {
+  border-bottom: 1px solid #ddd;
+  padding: 8px 0;
+  font-size: 14px;
 }
 /* variação de preço */
 .variacao {

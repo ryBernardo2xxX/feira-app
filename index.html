@@ -19,6 +19,8 @@
   <div id="progress"></div>
 </div>
 <div>Total: R$ <span id="total">0.00</span></div>
+<button class="botao-secundario" onclick="finalizarFeira()">✅ Finalizar feira</button>
+
 <!-- SUGESTÕES -->
 <h2>🛍️ Sugestões rápidas</h2>
 <p class="ajuda">Toque para adicionar direto na lista (baseado no que você já comprou antes)</p>
@@ -39,7 +41,13 @@
 <input id="categoria" placeholder="Categoria (opcional)">
 <button onclick="addItem()">Adicionar</button>
 <div id="lista"></div>
-<button onclick="resetar()">🔄 Resetar</button>
+
+<!-- HISTÓRICO -->
+<h2>📜 Histórico de feiras</h2>
+<button class="botao-secundario" onclick="toggleHistorico()">Ver/ocultar histórico</button>
+<div id="historicoContainer" style="display:none"></div>
+
+<button class="botao-perigo" onclick="resetar()">🗑️ Apagar tudo (avançado)</button>
 </div>
 <script src="app.js"></script>
 </body>

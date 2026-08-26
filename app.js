@@ -2,6 +2,7 @@ let itens = JSON.parse(localStorage.getItem("itens")) || [];
 let orcamento = parseFloat(localStorage.getItem("orcamento")) || 0;
 let timestamp = localStorage.getItem("timestamp") || "";
 let catalogo = JSON.parse(localStorage.getItem("catalogo")) || {};
+let historicoFeiras = JSON.parse(localStorage.getItem("historicoFeiras")) || [];
 
 // Ordem "física" sugerida de categorias (ajuste conforme o layout do seu mercado)
 const ORDEM_CATEGORIAS = [
@@ -30,6 +31,7 @@ function salvar() {
   localStorage.setItem("itens", JSON.stringify(itens));
   localStorage.setItem("orcamento", orcamento);
   localStorage.setItem("catalogo", JSON.stringify(catalogo));
+  localStorage.setItem("historicoFeiras", JSON.stringify(historicoFeiras));
 
   const now = new Date().toLocaleString();
   localStorage.setItem("timestamp", now);
@@ -225,15 +227,65 @@ function importar(e) {
   reader.readAsText(file);
 }
 
-// ===== RESET =====
+// ===== FINALIZAR FEIRA (arquiva sem apagar catálogo/histórico) =====
+function finalizarFeira() {
+  if (itens.length === 0) {
+    alert("Adicione itens antes de finalizar a feira.");
+    return;
+  }
+  if (!confirm("Finalizar esta feira? Ela será salva no histórico e a lista atual será limpa.")) return;
+
+  const total = itens.reduce((s, i) => s + i.preco * i.quantidade, 0);
+
+  historicoFeiras.unshift({
+    data: new Date().toLocaleString(),
+    itens: [...itens],
+    total: total,
+    orcamento: orcamento
+  });
+
+  // mantém só as últimas 20 feiras no histórico
+  historicoFeiras = historicoFeiras.slice(0, 20);
+
+  itens = [];
+  salvar();
+  render();
+}
+
+// ===== RESET TOTAL (avançado) =====
 function resetar() {
-  if (!confirm("Apagar tudo?")) return;
+  if (!confirm("Isso vai apagar TUDO, incluindo catálogo e histórico. Tem certeza?")) return;
 
   itens = [];
   orcamento = 0;
+  catalogo = {};
+  historicoFeiras = [];
 
   salvar();
   render();
+}
+
+// ===== HISTÓRICO (UI) =====
+function toggleHistorico() {
+  const box = document.getElementById("historicoContainer");
+  box.style.display = box.style.display === "none" ? "block" : "none";
+}
+
+function renderHistorico() {
+  const box = document.getElementById("historicoContainer");
+
+  if (historicoFeiras.length === 0) {
+    box.innerHTML = "<p class='vazio'>Nenhuma feira finalizada ainda.</p>";
+    return;
+  }
+
+  box.innerHTML = historicoFeiras.map(f => `
+    <div class="historico-item">
+      <div><strong>${f.data}</strong></div>
+      <div>Total: R$ ${f.total.toFixed(2)} ${f.orcamento ? "/ Orçamento: R$ " + f.orcamento.toFixed(2) : ""}</div>
+      <div class="categoria">${f.itens.length} itens</div>
+    </div>
+  `).join("");
 }
 
 // ===== RENDER =====
@@ -294,6 +346,7 @@ function render() {
 
   popularDatalist();
   renderSugestoes();
+  renderHistorico();
 }
 
 // ===== PWA =====
