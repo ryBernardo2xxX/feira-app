@@ -1,4 +1,5 @@
-const CACHE = "feira-cache-v2";
+const CACHE = "feira-cache-v3";
+
 self.addEventListener("install", e => {
   self.skipWaiting(); // força atualização imediata
   e.waitUntil(
@@ -7,11 +8,14 @@ self.addEventListener("install", e => {
         "./",
         "./index.html",
         "./style.css",
-        "./app.js"
+        "./app.js",
+        "./manifest.json",
+        "./icon.svg"
       ]);
     })
   );
 });
+
 self.addEventListener("activate", e => {
   e.waitUntil(
     caches.keys().then(keys => {
@@ -26,6 +30,7 @@ self.addEventListener("activate", e => {
   );
   self.clients.claim();
 });
+
 self.addEventListener("fetch", e => {
   e.respondWith(
     fetch(e.request)
