@@ -3,6 +3,19 @@ let orcamento = parseFloat(localStorage.getItem("orcamento")) || 0;
 let timestamp = localStorage.getItem("timestamp") || "";
 let catalogo = JSON.parse(localStorage.getItem("catalogo")) || {};
 
+// Ordem "física" sugerida de categorias (ajuste conforme o layout do seu mercado)
+const ORDEM_CATEGORIAS = [
+  "Hortifruti",
+  "Açougue/Congelados",
+  "Congelados",
+  "Laticínios",
+  "Mercearia",
+  "Limpeza",
+  "Higiene",
+  "Papelaria",
+  "Outros"
+];
+
 // ===== HELPERS =====
 function normalizar(nome) {
   return nome.trim().replace(/\s+/g, " ").toLowerCase();
@@ -134,6 +147,47 @@ function remover(i) {
   render();
 }
 
+// Adiciona rapidamente um item sugerido (a partir do catálogo) com qtd = 1
+function adicionarSugestao(chave) {
+  const item = catalogo[chave];
+  if (!item) return;
+
+  itens.push({
+    nome: item.nome,
+    preco: item.ultimoPreco,
+    quantidade: 1,
+    categoria: item.categoria || null,
+    variacao: null
+  });
+
+  atualizarCatalogo(item);
+  salvar();
+  render();
+}
+
+// ===== SUGESTÕES DE LISTA =====
+function renderSugestoes() {
+  const box = document.getElementById("sugestoesLista");
+
+  const jaNaLista = new Set(itens.map(i => normalizar(i.nome)));
+
+  const sugestoes = Object.entries(catalogo)
+    .filter(([chave, i]) => i.vezesComprado >= 2 && !jaNaLista.has(chave))
+    .sort((a, b) => b[1].vezesComprado - a[1].vezesComprado)
+    .slice(0, 12);
+
+  if (sugestoes.length === 0) {
+    box.innerHTML = "<p class='vazio'>Compre algumas vezes para ver sugestões automáticas aqui.</p>";
+    return;
+  }
+
+  box.innerHTML = sugestoes.map(([chave, i]) => `
+    <div class="chip" onclick="adicionarSugestao('${chave}')">
+      + ${i.nome} <span class="chip-preco">R$ ${i.ultimoPreco.toFixed(2)}</span>
+    </div>
+  `).join("");
+}
+
 // ===== EXPORT / IMPORT =====
 function exportar() {
   const data = { itens, orcamento, timestamp };
@@ -191,21 +245,38 @@ function render() {
   const lista = document.getElementById("lista");
   lista.innerHTML = "";
 
+  // agrupar por categoria, respeitando a ordem "física" do mercado
+  const grupos = {};
   itens.forEach((item, i) => {
-    const sub = item.preco * item.quantidade;
-    total += sub;
+    const cat = item.categoria || "Outros";
+    if (!grupos[cat]) grupos[cat] = [];
+    grupos[cat].push({ ...item, index: i });
+  });
 
-  lista.innerHTML += `
-    <div class="item">
-      <div class="item-top">
-        <div>${item.nome} x${item.quantidade}</div>
-        <div>R$ ${sub.toFixed(2)}</div>
-        <div class="remover" onclick="remover(${i})">❌</div>
-      </div>
-      ${item.categoria ? `<div class="categoria">${item.categoria}</div>` : ""}
-      ${item.variacao ? `<div class="variacao">${item.variacao}</div>` : ""}
-    </div>
-  `;
+  const categoriasOrdenadas = Object.keys(grupos).sort((a, b) => {
+    const ia = ORDEM_CATEGORIAS.indexOf(a);
+    const ib = ORDEM_CATEGORIAS.indexOf(b);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  });
+
+  categoriasOrdenadas.forEach(cat => {
+    lista.innerHTML += `<div class="categoria-titulo">${cat}</div>`;
+
+    grupos[cat].forEach(item => {
+      const sub = item.preco * item.quantidade;
+      total += sub;
+
+      lista.innerHTML += `
+        <div class="item">
+          <div class="item-top">
+            <div>${item.nome} x${item.quantidade}</div>
+            <div>R$ ${sub.toFixed(2)}</div>
+            <div class="remover" onclick="remover(${item.index})">❌</div>
+          </div>
+          ${item.variacao ? `<div class="variacao">${item.variacao}</div>` : ""}
+        </div>
+      `;
+    });
   });
 
   document.getElementById("total").innerText = total.toFixed(2);
@@ -222,6 +293,7 @@ function render() {
   }
 
   popularDatalist();
+  renderSugestoes();
 }
 
 // ===== PWA =====
