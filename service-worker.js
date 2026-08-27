@@ -1,32 +1,24 @@
-const CACHE = "feira-cache-v3";
+const CACHE = "feira-cache-v4";
 
 self.addEventListener("install", e => {
-  self.skipWaiting(); // força atualização imediata
+  self.skipWaiting();
   e.waitUntil(
-    caches.open(CACHE).then(cache => {
-      return cache.addAll([
-        "./",
-        "./index.html",
-        "./style.css",
-        "./app.js",
-        "./manifest.json",
-        "./icon.svg"
-      ]);
-    })
+    caches.open(CACHE).then(cache => cache.addAll([
+      "./",
+      "./index.html",
+      "./style.css",
+      "./app.js",
+      "./manifest.json",
+      "./icon.svg"
+    ]))
   );
 });
 
 self.addEventListener("activate", e => {
   e.waitUntil(
-    caches.keys().then(keys => {
-      return Promise.all(
-        keys.map(key => {
-          if (key !== CACHE) {
-            return caches.delete(key);
-          }
-        })
-      );
-    })
+    caches.keys().then(keys => Promise.all(
+      keys.map(key => key !== CACHE ? caches.delete(key) : null)
+    ))
   );
   self.clients.claim();
 });
@@ -34,10 +26,10 @@ self.addEventListener("activate", e => {
 self.addEventListener("fetch", e => {
   e.respondWith(
     fetch(e.request)
-      .then(res => {
+      .then(response => {
         return caches.open(CACHE).then(cache => {
-          cache.put(e.request, res.clone());
-          return res;
+          cache.put(e.request, response.clone());
+          return response;
         });
       })
       .catch(() => caches.match(e.request))

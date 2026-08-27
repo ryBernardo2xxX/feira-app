@@ -1,9 +1,9 @@
-import json, re
+import json
+import re
 
 with open("backup-original.json", "r", encoding="utf-8") as f:
     dados = json.load(f)
 
-# Mapa de categorização inferida pelo nome do produto (chave normalizada)
 CATEGORIAS = {
     "arroz 5kg": "Mercearia",
     "feijão carioca": "Mercearia",
@@ -43,8 +43,10 @@ CATEGORIAS = {
     "chettos assado": "Mercearia",
 }
 
+
 def normalizar(nome):
     return re.sub(r"\s+", " ", nome.strip()).lower()
+
 
 itens_limpos = []
 catalogo = {}
@@ -58,7 +60,9 @@ for item in dados["itens"]:
         "nome": nome_limpo,
         "preco": item["preco"],
         "quantidade": item["quantidade"],
-        "categoria": categoria
+        "categoria": categoria,
+        "status": "confirmado",
+        "precoEstimado": False,
     }
     itens_limpos.append(item_limpo)
 
@@ -70,7 +74,7 @@ for item in dados["itens"]:
             "nome": nome_limpo,
             "ultimoPreco": item["preco"],
             "categoria": categoria,
-            "vezesComprado": 1
+            "vezesComprado": 1,
         }
 
 total = sum(i["preco"] * i["quantidade"] for i in itens_limpos)
@@ -79,15 +83,16 @@ historico_feira = {
     "data": dados.get("timestamp", ""),
     "itens": itens_limpos,
     "total": round(total, 2),
-    "orcamento": dados.get("orcamento", 0)
+    "orcamento": dados.get("orcamento", 0),
 }
 
 estado_novo = {
+    "versaoDados": 2,
     "itens": [],
     "orcamento": dados.get("orcamento", 0),
     "timestamp": dados.get("timestamp", ""),
     "catalogo": catalogo,
-    "historicoFeiras": [historico_feira]
+    "historicoFeiras": [historico_feira],
 }
 
 with open("feira-inicial.json", "w", encoding="utf-8") as f:

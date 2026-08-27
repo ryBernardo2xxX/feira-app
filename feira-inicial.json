@@ -228,221 +228,294 @@
           "nome": "Arroz 5kg",
           "preco": 25.99,
           "quantidade": 2,
-          "categoria": "Mercearia"
+          "categoria": "Mercearia",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Feijão carioca",
           "preco": 6.95,
           "quantidade": 5,
-          "categoria": "Mercearia"
+          "categoria": "Mercearia",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Açúcar",
           "preco": 6.29,
           "quantidade": 1,
-          "categoria": "Mercearia"
+          "categoria": "Mercearia",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "SBP",
           "preco": 25.99,
           "quantidade": 1,
-          "categoria": "Mercearia"
+          "categoria": "Mercearia",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Trigo sol",
           "preco": 5.79,
           "quantidade": 1,
-          "categoria": "Mercearia"
+          "categoria": "Mercearia",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Bom Bril",
           "preco": 2.95,
           "quantidade": 1,
-          "categoria": "Limpeza"
+          "categoria": "Limpeza",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Esponja bom bril",
           "preco": 4.69,
           "quantidade": 1,
-          "categoria": "Limpeza"
+          "categoria": "Limpeza",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Milharina",
           "preco": 2.49,
           "quantidade": 5,
-          "categoria": "Mercearia"
+          "categoria": "Mercearia",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Óleo",
           "preco": 6.69,
           "quantidade": 1,
-          "categoria": "Mercearia"
+          "categoria": "Mercearia",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Leite Italac",
           "preco": 5.99,
           "quantidade": 12,
-          "categoria": "Laticínios"
+          "categoria": "Laticínios",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Manteiga Tourinho",
           "preco": 28.95,
           "quantidade": 1,
-          "categoria": "Laticínios"
+          "categoria": "Laticínios",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Peito de franfo seara",
           "preco": 19.98,
           "quantidade": 6,
-          "categoria": "Açougue/Congelados"
+          "categoria": "Açougue/Congelados",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Frango Seara",
           "preco": 25,
           "quantidade": 2,
-          "categoria": "Açougue/Congelados"
+          "categoria": "Açougue/Congelados",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Coxinha frango seara",
           "preco": 14.99,
           "quantidade": 2,
-          "categoria": "Congelados"
+          "categoria": "Congelados",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Ovo branco",
           "preco": 22.69,
           "quantidade": 3,
-          "categoria": "Laticínios"
+          "categoria": "Laticínios",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Listerine",
           "preco": 20,
           "quantidade": 1,
-          "categoria": "Higiene"
+          "categoria": "Higiene",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Desodorante dove",
           "preco": 27.99,
           "quantidade": 1,
-          "categoria": "Higiene"
+          "categoria": "Higiene",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Rexona",
           "preco": 13.49,
           "quantidade": 2,
-          "categoria": "Higiene"
+          "categoria": "Higiene",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Palmolive",
           "preco": 2.55,
           "quantidade": 4,
-          "categoria": "Higiene"
+          "categoria": "Higiene",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Protex",
           "preco": 3.99,
           "quantidade": 4,
-          "categoria": "Higiene"
+          "categoria": "Higiene",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Papel Higiênico dueto",
           "preco": 22.69,
           "quantidade": 1,
-          "categoria": "Higiene"
+          "categoria": "Higiene",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Sal nota 10",
           "preco": 1.95,
           "quantidade": 2,
-          "categoria": "Mercearia"
+          "categoria": "Mercearia",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Café Pilão",
           "preco": 15.99,
           "quantidade": 2,
-          "categoria": "Mercearia"
+          "categoria": "Mercearia",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Café contri",
           "preco": 13.99,
           "quantidade": 3,
-          "categoria": "Mercearia"
+          "categoria": "Mercearia",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Cereal chocolate",
           "preco": 6.99,
           "quantidade": 2,
-          "categoria": "Mercearia"
+          "categoria": "Mercearia",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Nutella pequena",
           "preco": 10.49,
           "quantidade": 1,
-          "categoria": "Mercearia"
+          "categoria": "Mercearia",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Biscoito bauduco chocolate",
           "preco": 9.79,
           "quantidade": 4,
-          "categoria": "Mercearia"
+          "categoria": "Mercearia",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Caderno",
           "preco": 36.19,
           "quantidade": 1,
-          "categoria": "Papelaria"
+          "categoria": "Papelaria",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Sabão em barra ype",
           "preco": 21.59,
           "quantidade": 1,
-          "categoria": "Limpeza"
+          "categoria": "Limpeza",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Água sanitária",
           "preco": 4.75,
           "quantidade": 1,
-          "categoria": "Limpeza"
+          "categoria": "Limpeza",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Detergente Minuano",
           "preco": 3.59,
           "quantidade": 2,
-          "categoria": "Limpeza"
+          "categoria": "Limpeza",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Alho ideal",
           "preco": 28.49,
           "quantidade": 1,
-          "categoria": "Mercearia"
+          "categoria": "Mercearia",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Cebola",
           "preco": 7,
           "quantidade": 1,
-          "categoria": "Hortifruti"
+          "categoria": "Hortifruti",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Cheetos assado",
           "preco": 13.99,
           "quantidade": 1,
-          "categoria": "Mercearia"
+          "categoria": "Mercearia",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Bife",
           "preco": 9.75,
           "quantidade": 1,
-          "categoria": "Açougue"
+          "categoria": "Açougue",
+          "status": "confirmado",
+          "precoEstimado": false
         },
         {
           "nome": "Chettos assado",
           "preco": 13.99,
           "quantidade": 1,
-          "categoria": "Mercearia"
+          "categoria": "Mercearia",
+          "status": "confirmado",
+          "precoEstimado": false
         }
       ],
       "total": 928.57,
       "orcamento": 1116.06
     }
-  ]
+  ],
+  "versaoDados": 2
 }

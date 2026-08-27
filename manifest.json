@@ -1,7 +1,7 @@
 {
   "name": "Feira Inteligente",
   "short_name": "Feira",
-  "description": "Controle de orçamento e lista de compras com histórico e sugestões automáticas.",
+  "description": "Controle de orçamento e lista de compras com catálogo, estimativas, histórico e sugestões automáticas.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
