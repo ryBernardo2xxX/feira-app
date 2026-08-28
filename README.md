@@ -1,58 +1,62 @@
 # 🛒 Feira Inteligente
 
-App simples de controle de orçamento e lista de compras, com catálogo de produtos, lista pré-definida, edição da lista atual, estimativas de preço, histórico de feiras e funcionamento offline como PWA.
+App de controle de orçamento e lista de compras, com catálogo de produtos, lista prévia separada do carrinho, edição inline, marca opcional, histórico de feiras e funcionamento offline como PWA.
 
-## Como funciona a lista
+## O modelo: lista prévia vs. carrinho
 
-Cada item da lista atual possui um estado:
+O app trabalha com duas listas independentes:
 
-- **Pendente:** é um lembrete. Pode ter apenas o nome.
-- **Confirmado:** possui preço informado e entra como compra real.
+- **Lista prévia** — planejamento. Um item aqui pode ter só o nome; preço e quantidade são estimativas (o app usa o último preço conhecido no catálogo, se houver). **Não conta no orçamento.**
+- **Carrinho** — a feira em andamento de fato. Todo item aqui tem preço confirmado e **é o que conta no total e na barra de orçamento**.
 
-Quando um item pendente já existe no catálogo, o último preço conhecido aparece como **estimativa** e entra no total planejado e na barra de orçamento. Essa estimativa não altera o catálogo nem conta como uma nova compra.
+Fluxo típico:
 
-Quando o preço atual é informado na edição, o item passa a **confirmado** e o catálogo é atualizado com a nova compra.
+1. Em casa, monte a lista prévia (nome, e opcionalmente marca/categoria/quantidade). Sugestões automáticas de produtos recorrentes aparecem prontas pra adicionar com um toque.
+2. No mercado, confira/ajuste o preço de cada item (edição inline, sem sair da lista) e toque em **"🛒 Ao carrinho"**. Isso confirma a compra e desconta do orçamento.
+3. Itens novos, não planejados, podem ser adicionados direto ao carrinho pelo formulário do topo (basta informar o preço).
+4. No fim, toque em **"✅ Finalizar feira"**: os itens do carrinho vão pro histórico e o catálogo é atualizado. A lista prévia não é afetada — o que sobrou nela continua disponível pra próxima feira.
 
-Para um produto que ainda não existe no catálogo, a lista mostra claramente que não há preço conhecido. O item continua pendente sem inventar um valor.
+Um item do carrinho também pode ser devolvido pra lista prévia (botão **"↩️ Lista prévia"**), caso você reconsidere uma compra sem perder o registro do item.
 
-## Edição
+## Marca (opcional)
 
-A edição acontece no mesmo formulário usado para adicionar itens. Ao tocar em **Editar** no overview:
+Cada item pode ter uma marca separada do nome (ex: nome "Leite", marca "Italac"). Isso é opcional — nada obriga a usar. O catálogo identifica produtos por **nome + marca**, então "Leite Italac" e "Leite Piracanjuba" viram entradas diferentes, cada uma com seu próprio histórico de preço.
 
-1. Os dados do item são carregados no formulário.
-2. O botão muda para **Salvar alteração**.
-3. O item pode ter nome, preço, quantidade e categoria alterados.
-4. Um item pendente pode continuar pendente se o preço ficar vazio.
-5. Ao preencher um preço, o item passa a confirmado.
+Se você digitar um nome que já existe no catálogo em mais de uma marca, o app mostra as opções conhecidas (com preço de cada uma) em vez de adivinhar qual você quer.
 
-Assim, uma lista importada de um backup continua sendo uma lista realmente utilizável e editável.
+## Edição inline
 
-## Finalizar feira
+Tanto na lista prévia quanto no carrinho, o botão **"✏️ Editar"** transforma o próprio item da lista em um mini-formulário (nome, marca, categoria, quantidade, preço), sem precisar rolar até o topo da página. Isso serve tanto pra corrigir um erro de digitação rápido quanto pra completar informações que faltavam (ex: preço de um item da lista prévia, direto no mercado).
 
-Ao finalizar:
+## Categorias: colapsar e ordenar
 
-- itens confirmados são arquivados no histórico;
-- itens pendentes permanecem na lista atual para a próxima feira;
-- o catálogo é reconstruído somente a partir de compras confirmadas.
+- Toque no título de uma categoria (ex: "MERCEARIA") pra recolher/expandir os itens dela. O estado fica salvo entre sessões.
+- Um seletor de ordenação permite alternar entre "Como foi adicionado" e "Alfabética (A–Z)", aplicado às duas listas. A estrutura já deixa espaço para outros modos de ordenação no futuro (por preço, por categoria isolada, etc.), caso seja necessário.
+
+## Catálogo
+
+O catálogo é reconstruído a partir de compras confirmadas — itens do carrinho e itens arquivados no histórico. A lista prévia nunca altera o catálogo (ela é só planejamento, ainda não é uma compra real).
 
 ## Backup
 
-O JSON exportado contém a lista atual, orçamento, catálogo e histórico. Backups antigos continuam sendo aceitos: itens que não possuem `status` são tratados como confirmados, preservando o comportamento dos dados antigos.
+O JSON exportado (`versaoDados: 3`) contém lista prévia, carrinho, orçamento, catálogo e histórico. **Backups antigos continuam funcionando**:
+
+- Backups no formato anterior (com itens marcados como "pendente"/"confirmado") têm os pendentes convertidos automaticamente em itens de lista prévia, e os confirmados em itens de carrinho.
+- Backups ainda mais antigos (sem esse campo de status) são tratados como se todos os itens já fossem confirmados — comportamento idêntico ao que tinham originalmente.
 
 ## Publicação no GitHub Pages
 
-1. Crie um repositório e envie os arquivos desta pasta para a raiz.
-2. Vá em **Settings → Pages**.
-3. Selecione a branch `main` e a pasta `/ (root)`.
-4. Acesse o endereço fornecido pelo GitHub Pages.
-5. No celular, abra o endereço e use a opção de adicionar à tela inicial.
+1. Envie os arquivos desta pasta para a raiz de um repositório.
+2. Vá em **Settings → Pages**, selecione a branch `main` e a pasta `/ (root)`.
+3. Acesse o endereço fornecido pelo GitHub Pages.
+4. No celular, abra o endereço e use "Adicionar à tela inicial".
 
-## Atualização do PWA
+## Atualizando o app depois de mudanças
 
-Sempre que alterar `app.js`, `index.html`, `style.css`, `manifest.json` ou `icon.svg`, incremente a constante `CACHE` em `service-worker.js`, por exemplo:
+Sempre que `app.js`, `index.html`, `style.css`, `manifest.json` ou `icon.svg` forem alterados, suba o número da versão em `service-worker.js`:
 
 ```js
-const CACHE = "feira-cache-v5";
+const CACHE = "feira-cache-v6"; // por exemplo
 ```
 
-Isso força os clientes a abandonar o cache anterior.
+Isso garante que o celular baixe a versão nova em vez de continuar servindo do cache.

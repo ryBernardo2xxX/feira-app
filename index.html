@@ -24,49 +24,70 @@
       <div id="progress"></div>
     </div>
 
-    <div class="total-principal">Total planejado: R$ <span id="total">0.00</span></div>
-    <div id="indicadorEstimativa" class="indicador-estimativa" style="display:none">
-      Parte do total usa preços estimados do catálogo.
-    </div>
-    <div class="totais-secundarios">
-      <span>Confirmado: R$ <strong id="totalConfirmado">0.00</strong></span>
-      <span>Estimado: R$ <strong id="totalEstimado">0.00</strong></span>
-    </div>
+    <div class="total-principal">Total no carrinho: R$ <span id="total">0.00</span></div>
+    <p class="ajuda">Só o carrinho conta pro orçamento. A lista prévia é só planejamento.</p>
 
     <button class="botao-secundario" onclick="finalizarFeira()">✅ Finalizar feira</button>
   </section>
 
-  <section>
-    <h2>🛍️ Sugestões rápidas</h2>
-    <p class="ajuda">Toque em um produto para colocá-lo na lista como lembrete. O último preço será usado apenas como estimativa.</p>
-    <div id="sugestoesLista"></div>
-  </section>
-
-  <section>
-    <h2>🧾 Lista da feira</h2>
-    <div id="resumoLista" class="resumo-lista"></div>
-    <div id="lista"></div>
-  </section>
-
   <section class="form-section">
-    <h2 id="form-titulo">Adicionar item</h2>
-    <p class="ajuda">Digite somente o nome para criar um lembrete. Preencha o preço para confirmar a compra.</p>
+    <h2>➕ Adicionar item</h2>
+    <p class="ajuda">Em casa: preencha o que souber e mande para a <strong>lista prévia</strong>. No mercado: confirme o preço e mande direto ao <strong>carrinho</strong>.</p>
 
     <input id="nome" placeholder="Produto" list="sugestoes-produtos" oninput="preencherAuto()">
     <datalist id="sugestoes-produtos"></datalist>
     <p id="hint-produto" class="hint" style="display:none"></p>
 
-    <input id="preco" type="number" min="0" step="0.01" placeholder="Preço (opcional)">
-    <input id="quantidade" type="number" min="1" step="1" placeholder="Quantidade (padrão: 1)">
-    <input id="categoria" placeholder="Categoria (opcional)">
+    <input id="marca" placeholder="Marca (opcional)" list="sugestoes-marcas">
+    <datalist id="sugestoes-marcas"></datalist>
 
-    <button id="botao-form" onclick="salvarItemDoFormulario()">Adicionar</button>
-    <button id="botao-cancelar" class="botao-secundario" onclick="cancelarEdicao()" style="display:none">Cancelar edição</button>
+    <input id="categoria" placeholder="Categoria (opcional)">
+    <input id="quantidade" type="number" min="1" step="1" placeholder="Quantidade (padrão: 1)">
+    <input id="preco" type="number" min="0" step="0.01" placeholder="Preço (opcional para lista prévia)">
+
+    <div class="form-botoes">
+      <button class="botao-previa" onclick="adicionarAListaPrevia()">📝 Adicionar à lista prévia</button>
+      <button class="botao-carrinho" onclick="adicionarAoCarrinho()">🛒 Adicionar ao carrinho</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="secao-cabecalho">
+      <h2>🔀 Ordenar listas</h2>
+    </div>
+    <select id="ordenacao" onchange="setOrdenacao(this.value)">
+      <option value="padrao">Como foi adicionado</option>
+      <option value="alfabetica">Alfabética (A–Z)</option>
+    </select>
+    <p class="ajuda">Vale para a lista prévia e para o carrinho. Toque no título de uma categoria para recolher/expandir.</p>
+  </section>
+
+  <section>
+    <h2>🛍️ Sugestões rápidas</h2>
+    <p class="ajuda">Toque para mandar direto para a lista prévia (o preço vem do catálogo como estimativa).</p>
+    <div id="sugestoesLista"></div>
+  </section>
+
+  <section>
+    <div class="secao-cabecalho">
+      <h2>📝 Lista prévia</h2>
+      <span id="resumoPrevia" class="resumo-lista"></span>
+    </div>
+    <div class="total-secundario">Estimativa total: R$ <span id="totalPrevia">0.00</span> <span class="ajuda-inline">(não conta no orçamento)</span></div>
+    <div id="listaPreviaContainer"></div>
+  </section>
+
+  <section>
+    <div class="secao-cabecalho">
+      <h2>🧾 Carrinho (feira em andamento)</h2>
+      <span id="resumoCarrinho" class="resumo-lista"></span>
+    </div>
+    <div id="listaCarrinhoContainer"></div>
   </section>
 
   <section>
     <h2>💾 Backup</h2>
-    <p class="ajuda">Exporta a lista atual, catálogo e histórico. Ao importar, a lista atual continua editável.</p>
+    <p class="ajuda">Exporta lista prévia, carrinho, catálogo e histórico juntos. Backups antigos continuam funcionando.</p>
     <button onclick="exportar()">Exportar JSON</button>
     <input type="file" accept="application/json,.json" onchange="importar(event)">
   </section>

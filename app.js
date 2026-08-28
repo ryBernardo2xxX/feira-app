@@ -1,10 +1,14 @@
-// ===== ESTADO =====
-let itens = carregarJSON("itens", []);
-let orcamento = parseFloat(localStorage.getItem("orcamento")) || 0;
-let timestamp = localStorage.getItem("timestamp") || "";
-let catalogo = carregarJSON("catalogo", {});
-let historicoFeiras = carregarJSON("historicoFeiras", []);
-let itemEmEdicao = null;
+// =====================================================================
+// ESTADO
+// =====================================================================
+// Modelo de dados (v3):
+// - listaPrevia: itens de planejamento (podem não ter preço ainda).
+//                Não entra no total do orçamento.
+// - itens:       o carrinho da feira em andamento. Todo item aqui tem
+//                preço confirmado e É o que conta pro orçamento.
+// - catalogo:    derivado de compras confirmadas (itens do carrinho +
+//                itens arquivados no histórico). Chave = nome + marca.
+// =====================================================================
 
 const ORDEM_CATEGORIAS = [
   "Hortifruti",
@@ -18,7 +22,6 @@ const ORDEM_CATEGORIAS = [
   "Outros"
 ];
 
-// ===== HELPERS =====
 function carregarJSON(chave, padrao) {
   try {
     const valor = localStorage.getItem(chave);
@@ -33,12 +36,12 @@ function novoId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function normalizar(nome) {
-  return String(nome ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+function normalizar(valor) {
+  return String(valor ?? "").trim().replace(/\s+/g, " ").toLowerCase();
 }
 
-function limparNome(nome) {
-  return String(nome ?? "").trim().replace(/\s+/g, " ");
+function limparNome(valor) {
+  return String(valor ?? "").trim().replace(/\s+/g, " ");
 }
 
 function escaparHTML(valor) {
@@ -50,56 +53,135 @@ function escaparHTML(valor) {
     .replace(/'/g, "&#039;");
 }
 
+// Usado para inserir valores dinâmicos dentro de onclick="...('valor')"
+// (o HTML já cuida das aspas duplas via escaparHTML; isto protege as
+// aspas simples do literal JavaScript dentro do atributo).
+function escaparAtributoJS(valor) {
+  return String(valor ?? "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
 function dinheiro(valor) {
   return Number(valor || 0).toFixed(2);
 }
 
-function itemEhPendente(item) {
-  return item.status === "pendente";
+// Identidade de um produto no catálogo: nome + marca (marca opcional).
+function chaveProduto(nome, marca) {
+  return `${normalizar(nome)}::${normalizar(marca || "")}`;
 }
 
-function garantirEstruturaItem(item) {
-  const chave = normalizar(item.nome);
-  const entradaCatalogo = catalogo[chave];
-  const status = item.status === "pendente" ? "pendente" : "confirmado";
-  const precoOriginal = Number(item.preco);
-  const temPreco = Number.isFinite(precoOriginal) && precoOriginal > 0;
-  const precoEstimado = status === "pendente" && !temPreco && !!entradaCatalogo;
+// =====================================================================
+// NORMALIZAÇÃO / MIGRAÇÃO DE DADOS
+// =====================================================================
 
+function garantirItemPrevia(item) {
+  const preco = Number(item.precoEstimado ?? item.preco);
   return {
     id: item.id || novoId(),
     nome: limparNome(item.nome),
-    preco: temPreco ? precoOriginal : (precoEstimado ? Number(entradaCatalogo.ultimoPreco) : 0),
-    quantidade: Number.isFinite(Number(item.quantidade)) && Number(item.quantidade) > 0 ? Number(item.quantidade) : 1,
-    categoria: item.categoria || (entradaCatalogo?.categoria || null),
-    status,
-    precoEstimado: status === "pendente" ? (item.precoEstimado ?? precoEstimado) : false,
-    variacao: status === "confirmado" ? (item.variacao || null) : null
+    marca: item.marca ? limparNome(item.marca) : null,
+    categoria: item.categoria || null,
+    quantidade: Number.isFinite(Number(item.quantidade)) && Number(item.quantidade) > 0
+      ? Number(item.quantidade) : 1,
+    precoEstimado: Number.isFinite(preco) && preco > 0 ? preco : null
   };
 }
 
-itens = Array.isArray(itens) ? itens.map(garantirEstruturaItem).filter(i => i.nome) : [];
-historicoFeiras = Array.isArray(historicoFeiras) ? historicoFeiras.map(normalizarHistorico) : [];
+function garantirItemCarrinho(item) {
+  return {
+    id: item.id || novoId(),
+    nome: limparNome(item.nome),
+    marca: item.marca ? limparNome(item.marca) : null,
+    categoria: item.categoria || null,
+    quantidade: Number.isFinite(Number(item.quantidade)) && Number(item.quantidade) > 0
+      ? Number(item.quantidade) : 1,
+    preco: Number(item.preco) > 0 ? Number(item.preco) : 0,
+    variacao: item.variacao || null
+  };
+}
 
-function normalizarHistorico(feira) {
+function normalizarItemHistorico(item) {
+  return {
+    nome: limparNome(item.nome),
+    marca: item.marca ? limparNome(item.marca) : null,
+    preco: Number(item.preco) || 0,
+    quantidade: Number(item.quantidade) || 1,
+    categoria: item.categoria || null
+  };
+}
+
+function normalizarFeira(feira) {
   return {
     data: feira?.data || "",
-    itens: Array.isArray(feira?.itens)
-      ? feira.itens.map(item => ({
-          ...garantirEstruturaItem({ ...item, status: "confirmado", precoEstimado: false }),
-          status: "confirmado",
-          precoEstimado: false,
-          variacao: item.variacao || null
-        }))
-      : [],
+    itens: Array.isArray(feira?.itens) ? feira.itens.map(normalizarItemHistorico) : [],
     total: Number(feira?.total) || 0,
     orcamento: Number(feira?.orcamento) || 0
   };
 }
 
-// ===== STORAGE =====
+// Aceita três formatos de entrada:
+// - v3 (atual): já tem "listaPrevia" como array próprio.
+// - v2: itens tinham campo "status" ("pendente"/"confirmado").
+// - v1: itens sem "status" nenhum (tudo era considerado comprado).
+// Em todos os casos, devolve sempre o formato v3.
+function migrarParaV3(data) {
+  const itensOriginais = Array.isArray(data.itens) ? data.itens : [];
+  const jaEhV3 = Array.isArray(data.listaPrevia);
+
+  let itensCarrinhoBrutos = itensOriginais;
+  let listaPreviaBruta = jaEhV3 ? data.listaPrevia : [];
+
+  if (!jaEhV3) {
+    const pendentesAntigos = itensOriginais.filter(i => i.status === "pendente");
+    itensCarrinhoBrutos = itensOriginais.filter(i => i.status !== "pendente");
+
+    listaPreviaBruta = pendentesAntigos.map(i => ({
+      nome: i.nome,
+      marca: null,
+      categoria: i.categoria,
+      quantidade: i.quantidade,
+      precoEstimado: Number(i.preco) > 0 ? i.preco : null
+    }));
+  }
+
+  return {
+    itens: itensCarrinhoBrutos.map(garantirItemCarrinho).filter(i => i.nome),
+    listaPrevia: listaPreviaBruta.map(garantirItemPrevia).filter(i => i.nome),
+    orcamento: Number(data.orcamento) || 0,
+    timestamp: data.timestamp || "",
+    historicoFeiras: Array.isArray(data.historicoFeiras) ? data.historicoFeiras.map(normalizarFeira) : []
+  };
+}
+
+// =====================================================================
+// CARREGAMENTO INICIAL
+// =====================================================================
+
+const dadosIniciais = migrarParaV3({
+  itens: carregarJSON("itens", []),
+  listaPrevia: localStorage.getItem("listaPrevia") !== null ? carregarJSON("listaPrevia", []) : undefined,
+  orcamento: parseFloat(localStorage.getItem("orcamento")) || 0,
+  timestamp: localStorage.getItem("timestamp") || "",
+  historicoFeiras: carregarJSON("historicoFeiras", [])
+});
+
+let itens = dadosIniciais.itens;
+let listaPrevia = dadosIniciais.listaPrevia;
+let orcamento = dadosIniciais.orcamento;
+let timestamp = dadosIniciais.timestamp;
+let historicoFeiras = dadosIniciais.historicoFeiras;
+let catalogo = {};
+
+let edicaoInline = null; // { contexto: "previa" | "carrinho", id }
+let ordenacao = localStorage.getItem("ordenacao") === "alfabetica" ? "alfabetica" : "padrao";
+let categoriasColapsadas = carregarJSON("categoriasColapsadas", { previa: {}, carrinho: {} });
+
+// =====================================================================
+// STORAGE
+// =====================================================================
+
 function salvar() {
   localStorage.setItem("itens", JSON.stringify(itens));
+  localStorage.setItem("listaPrevia", JSON.stringify(listaPrevia));
   localStorage.setItem("orcamento", String(orcamento));
   localStorage.setItem("catalogo", JSON.stringify(catalogo));
   localStorage.setItem("historicoFeiras", JSON.stringify(historicoFeiras));
@@ -109,51 +191,61 @@ function salvar() {
   timestamp = now;
 }
 
-// ===== CATÁLOGO =====
-// O catálogo representa compras confirmadas. Itens pendentes nunca alteram suas estatísticas.
+// =====================================================================
+// CATÁLOGO (derivado só de compras confirmadas)
+// =====================================================================
+
 function reconstruirCatalogo() {
   const novoCatalogo = {};
 
   const registrarCompra = item => {
-    if (itemEhPendente(item) || !item.nome || !(Number(item.preco) > 0)) return;
-
-    const chave = normalizar(item.nome);
+    if (!item.nome || !(Number(item.preco) > 0)) return;
+    const chave = chaveProduto(item.nome, item.marca);
     const anterior = novoCatalogo[chave];
 
     novoCatalogo[chave] = {
       nome: item.nome,
-      ultimoPreco: Number(item.preco),
+      marca: item.marca || anterior?.marca || null,
       categoria: item.categoria || anterior?.categoria || null,
+      ultimoPreco: Number(item.preco),
       vezesComprado: (anterior?.vezesComprado || 0) + 1
     };
   };
 
-  // Histórico está do mais recente para o mais antigo; aplicamos do antigo para o novo.
-  [...historicoFeiras].reverse().forEach(feira => {
-    feira.itens.forEach(registrarCompra);
-  });
-
-  // A feira atual ainda não foi arquivada, mas seus itens confirmados já podem alimentar o catálogo.
+  [...historicoFeiras].reverse().forEach(feira => feira.itens.forEach(registrarCompra));
   itens.forEach(registrarCompra);
 
   catalogo = novoCatalogo;
 }
 
-// ===== ORÇAMENTO =====
-function setOrcamento() {
-  const valor = parseFloat(document.getElementById("orcamento").value);
-  orcamento = Number.isFinite(valor) && valor >= 0 ? valor : 0;
-  salvar();
-  render();
+function buscarCatalogoPorNome(nome) {
+  const chaveNome = normalizar(nome);
+  if (!chaveNome) return [];
+  return Object.values(catalogo).filter(i => normalizar(i.nome) === chaveNome);
 }
 
-function calcularVariacao(nome, precoNovo, ignorarPrecoAtual = false) {
-  const chave = normalizar(nome);
-  const anterior = catalogo[chave];
+// Preço a considerar para um item da lista prévia: o que o usuário
+// digitou manualmente (se digitou), senão o último preço conhecido
+// no catálogo para aquele nome+marca, senão (sem marca definida) o
+// preço conhecido caso exista uma única marca cadastrada pra esse nome.
+function precoEstimadoAtual(itemPrevia) {
+  if (Number(itemPrevia.precoEstimado) > 0) return Number(itemPrevia.precoEstimado);
+
+  const doCatalogo = catalogo[chaveProduto(itemPrevia.nome, itemPrevia.marca)];
+  if (doCatalogo) return doCatalogo.ultimoPreco;
+
+  const porNome = buscarCatalogoPorNome(itemPrevia.nome);
+  if (porNome.length === 1) return porNome[0].ultimoPreco;
+
+  return null;
+}
+
+function calcularVariacao(nome, marca, precoNovo) {
+  const anterior = catalogo[chaveProduto(nome, marca)];
   if (!anterior) return null;
 
   const diff = precoNovo - anterior.ultimoPreco;
-  if (Math.abs(diff) < 0.01 || (ignorarPrecoAtual && Math.abs(diff) < 0.01)) return null;
+  if (Math.abs(diff) < 0.01) return null;
 
   return {
     valor: diff,
@@ -161,328 +253,554 @@ function calcularVariacao(nome, precoNovo, ignorarPrecoAtual = false) {
   };
 }
 
-function popularDatalist() {
-  const dl = document.getElementById("sugestoes-produtos");
-  dl.innerHTML = Object.values(catalogo)
-    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
-    .map(i => `<option value="${escaparHTML(i.nome)}">`)
-    .join("");
+function popularDatalists() {
+  const nomesUnicos = [...new Set(Object.values(catalogo).map(i => i.nome))]
+    .sort((a, b) => a.localeCompare(b, "pt-BR"));
+  document.getElementById("sugestoes-produtos").innerHTML =
+    nomesUnicos.map(n => `<option value="${escaparHTML(n)}">`).join("");
+
+  const marcasUnicas = [...new Set(Object.values(catalogo).map(i => i.marca).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, "pt-BR"));
+  document.getElementById("sugestoes-marcas").innerHTML =
+    marcasUnicas.map(m => `<option value="${escaparHTML(m)}">`).join("");
 }
 
+// Dica de autocomplete no formulário de criação (não roda na edição inline,
+// que já tem os campos preenchidos e datalist para digitação assistida).
 function preencherAuto() {
   const nomeInput = document.getElementById("nome");
-  const precoInput = document.getElementById("preco");
+  const marcaInput = document.getElementById("marca");
   const categoriaInput = document.getElementById("categoria");
   const hint = document.getElementById("hint-produto");
 
-  const chave = normalizar(nomeInput.value);
-  const item = catalogo[chave];
-
-  if (!item) {
-    hint.innerText = nomeInput.value.trim()
-      ? "🆕 Produto novo: preço e categoria ainda não cadastrados."
-      : "";
-    hint.className = "hint hint-novo";
-    hint.style.display = nomeInput.value.trim() ? "block" : "none";
+  const nomeDigitado = nomeInput.value.trim();
+  if (!nomeDigitado) {
+    hint.style.display = "none";
     return;
   }
 
-  // O último preço não é colocado no campo automaticamente.
-  // Assim, digitar apenas o nome continua criando um lembrete pendente.
-  if (!categoriaInput.value && item.categoria) categoriaInput.value = item.categoria;
+  const encontrados = buscarCatalogoPorNome(nomeDigitado);
 
-  hint.innerText = `🔁 comprado ${item.vezesComprado}x antes · último preço R$ ${dinheiro(item.ultimoPreco)}`;
+  if (encontrados.length === 0) {
+    hint.innerText = "🆕 Produto novo: preço e categoria ainda não cadastrados.";
+    hint.className = "hint hint-novo";
+    hint.style.display = "block";
+    return;
+  }
+
+  if (encontrados.length === 1) {
+    const item = encontrados[0];
+    if (!categoriaInput.value && item.categoria) categoriaInput.value = item.categoria;
+    if (!marcaInput.value && item.marca) marcaInput.value = item.marca;
+    hint.innerText = `🔁 comprado ${item.vezesComprado}x antes` +
+      (item.marca ? ` · marca: ${item.marca}` : "") +
+      ` · último preço R$ ${dinheiro(item.ultimoPreco)}`;
+    hint.className = "hint";
+    hint.style.display = "block";
+    return;
+  }
+
+  const opcoes = [...encontrados]
+    .sort((a, b) => b.vezesComprado - a.vezesComprado)
+    .map(i => `${i.marca || "sem marca"} (R$ ${dinheiro(i.ultimoPreco)})`)
+    .join(", ");
+  hint.innerText = `🔁 conhecido em ${encontrados.length} marcas: ${opcoes} — informe a marca para diferenciar.`;
   hint.className = "hint";
   hint.style.display = "block";
 }
 
-// ===== FORMULÁRIO / EDIÇÃO =====
-function resetarFormulario() {
-  itemEmEdicao = null;
+// =====================================================================
+// ORÇAMENTO
+// =====================================================================
+
+function setOrcamento() {
+  const valor = parseFloat(document.getElementById("orcamento").value);
+  orcamento = Number.isFinite(valor) && valor >= 0 ? valor : 0;
+  salvar();
+  render();
+}
+
+// =====================================================================
+// FORMULÁRIO DE CRIAÇÃO (topo) — alimenta lista prévia OU carrinho
+// =====================================================================
+
+function limparFormulario() {
   document.getElementById("nome").value = "";
+  document.getElementById("marca").value = "";
   document.getElementById("preco").value = "";
   document.getElementById("quantidade").value = "";
   document.getElementById("categoria").value = "";
   document.getElementById("hint-produto").style.display = "none";
-  document.getElementById("form-titulo").innerText = "Adicionar item";
-  document.getElementById("botao-form").innerText = "Adicionar";
-  document.getElementById("botao-cancelar").style.display = "none";
-}
-
-function iniciarEdicao(id) {
-  const item = itens.find(i => i.id === id);
-  if (!item) return;
-
-  itemEmEdicao = id;
-  document.getElementById("nome").value = item.nome;
-  document.getElementById("preco").value = itemEhPendente(item) ? "" : item.preco;
-  document.getElementById("quantidade").value = item.quantidade;
-  document.getElementById("categoria").value = item.categoria || "";
-  document.getElementById("form-titulo").innerText = "Editar item";
-  document.getElementById("botao-form").innerText = "Salvar alteração";
-  document.getElementById("botao-cancelar").style.display = "block";
-
-  const catalogado = catalogo[normalizar(item.nome)];
-  const hint = document.getElementById("hint-produto");
-
-  if (catalogado) {
-    hint.innerText = itemEhPendente(item)
-      ? `💡 Último preço conhecido: R$ ${dinheiro(catalogado.ultimoPreco)}. Informe o preço atual para confirmar a compra.`
-      : `🔁 comprado ${catalogado.vezesComprado}x antes · último preço R$ ${dinheiro(catalogado.ultimoPreco)}`;
-    hint.className = "hint";
-    hint.style.display = "block";
-  } else if (itemEhPendente(item)) {
-    hint.innerText = "🆕 Produto novo: informe o preço quando encontrar no mercado.";
-    hint.className = "hint hint-novo";
-    hint.style.display = "block";
-  }
-
   document.getElementById("nome").focus();
-  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-function cancelarEdicao() {
-  resetarFormulario();
-}
+function lerFormulario() {
+  const nome = limparNome(document.getElementById("nome").value);
+  const marca = limparNome(document.getElementById("marca").value) || null;
+  const categoria = limparNome(document.getElementById("categoria").value) || null;
 
-function salvarItemDoFormulario() {
-  const nomeInput = document.getElementById("nome");
-  const precoInput = document.getElementById("preco");
-  const quantidadeInput = document.getElementById("quantidade");
-  const categoriaInput = document.getElementById("categoria");
+  const quantidadeValor = document.getElementById("quantidade").value.trim();
+  const quantidade = quantidadeValor !== "" ? parseInt(quantidadeValor, 10) : 1;
 
-  const nome = limparNome(nomeInput.value);
-  const precoInformado = precoInput.value.trim() !== "" ? parseFloat(precoInput.value) : NaN;
-  const quantidadeInformada = quantidadeInput.value.trim() !== "" ? parseInt(quantidadeInput.value, 10) : 1;
-  const categoriaInformada = limparNome(categoriaInput.value);
+  const precoValor = document.getElementById("preco").value.trim();
+  const preco = precoValor !== "" ? parseFloat(precoValor) : NaN;
 
   if (!nome) {
     alert("Informe o nome do produto.");
-    nomeInput.focus();
-    return;
+    document.getElementById("nome").focus();
+    return null;
   }
-
-  if (!Number.isFinite(quantidadeInformada) || quantidadeInformada <= 0) {
+  if (!Number.isFinite(quantidade) || quantidade <= 0) {
     alert("A quantidade deve ser maior que zero.");
-    quantidadeInput.focus();
-    return;
+    document.getElementById("quantidade").focus();
+    return null;
+  }
+  if (precoValor !== "" && (!Number.isFinite(preco) || preco <= 0)) {
+    alert("Informe um preço válido maior que zero, ou deixe em branco.");
+    document.getElementById("preco").focus();
+    return null;
   }
 
-  if (precoInput.value.trim() !== "" && (!Number.isFinite(precoInformado) || precoInformado <= 0)) {
-    alert("Informe um preço válido maior que zero.");
-    precoInput.focus();
-    return;
-  }
+  return { nome, marca, categoria, quantidade, preco: Number.isFinite(preco) ? preco : null };
+}
 
-  const categoria = categoriaInformada || catalogo[normalizar(nome)]?.categoria || null;
-  const confirmado = Number.isFinite(precoInformado) && precoInformado > 0;
-  const catalogoAnterior = catalogo[normalizar(nome)];
+function categoriaSugerida(nome, categoriaDigitada) {
+  if (categoriaDigitada) return categoriaDigitada;
+  const encontrados = buscarCatalogoPorNome(nome);
+  return encontrados.length === 1 ? encontrados[0].categoria : null;
+}
 
-  if (itemEmEdicao) {
-    const index = itens.findIndex(i => i.id === itemEmEdicao);
-    if (index === -1) {
-      resetarFormulario();
-      return;
-    }
+function adicionarAListaPrevia() {
+  const dados = lerFormulario();
+  if (!dados) return;
 
-    const anterior = itens[index];
-    const variacao = confirmado
-      ? calcularVariacao(nome, precoInformado)
-      : null;
+  listaPrevia.push({
+    id: novoId(),
+    nome: dados.nome,
+    marca: dados.marca,
+    categoria: categoriaSugerida(dados.nome, dados.categoria),
+    quantidade: dados.quantidade,
+    precoEstimado: dados.preco
+  });
 
-    itens[index] = {
-      ...anterior,
-      nome,
-      preco: confirmado ? precoInformado : (catalogoAnterior?.ultimoPreco || anterior.preco || 0),
-      quantidade: quantidadeInformada,
-      categoria,
-      status: confirmado ? "confirmado" : "pendente",
-      precoEstimado: confirmado ? false : !!catalogoAnterior,
-      variacao: confirmado ? (variacao?.texto || null) : null
-    };
-  } else {
-    const novoItem = {
-      id: novoId(),
-      nome,
-      preco: confirmado ? precoInformado : (catalogoAnterior?.ultimoPreco || 0),
-      quantidade: quantidadeInformada,
-      categoria,
-      status: confirmado ? "confirmado" : "pendente",
-      precoEstimado: !confirmado && !!catalogoAnterior,
-      variacao: confirmado ? (calcularVariacao(nome, precoInformado)?.texto || null) : null
-    };
-
-    itens.push(novoItem);
-  }
-
-  reconstruirCatalogo();
-  resetarFormulario();
+  limparFormulario();
   salvar();
   render();
 }
 
-// ===== AÇÕES DA LISTA =====
-function remover(id) {
-  itens = itens.filter(item => item.id !== id);
+function adicionarAoCarrinho() {
+  const dados = lerFormulario();
+  if (!dados) return;
+
+  if (!dados.preco) {
+    alert("Para ir direto ao carrinho, informe o preço. Sem preço, use 'Adicionar à lista prévia'.");
+    document.getElementById("preco").focus();
+    return;
+  }
+
+  const categoria = categoriaSugerida(dados.nome, dados.categoria);
+  const variacao = calcularVariacao(dados.nome, dados.marca, dados.preco);
+
+  itens.push({
+    id: novoId(),
+    nome: dados.nome,
+    marca: dados.marca,
+    categoria,
+    quantidade: dados.quantidade,
+    preco: dados.preco,
+    variacao: variacao?.texto || null
+  });
+
+  limparFormulario();
   reconstruirCatalogo();
   salvar();
   render();
 }
 
-function adicionarSugestao(chave) {
-  const item = catalogo[chave];
+// =====================================================================
+// MOVIMENTAÇÃO ENTRE LISTAS
+// =====================================================================
+
+function adicionarAoCarrinhoDaPrevia(id) {
+  const item = listaPrevia.find(i => i.id === id);
   if (!item) return;
+
+  const preco = precoEstimadoAtual(item);
+  if (!preco || preco <= 0) {
+    alert("Informe o preço deste item antes de adicionar ao carrinho.");
+    iniciarEdicaoInline("previa", id);
+    return;
+  }
+
+  const variacao = calcularVariacao(item.nome, item.marca, preco);
 
   itens.push({
     id: novoId(),
     nome: item.nome,
-    preco: item.ultimoPreco,
+    marca: item.marca,
+    categoria: item.categoria,
+    quantidade: item.quantidade,
+    preco,
+    variacao: variacao?.texto || null
+  });
+
+  listaPrevia = listaPrevia.filter(i => i.id !== id);
+  reconstruirCatalogo();
+  salvar();
+  render();
+}
+
+function moverParaListaPrevia(id) {
+  const item = itens.find(i => i.id === id);
+  if (!item) return;
+
+  listaPrevia.push({
+    id: novoId(),
+    nome: item.nome,
+    marca: item.marca,
+    categoria: item.categoria,
+    quantidade: item.quantidade,
+    precoEstimado: item.preco
+  });
+
+  itens = itens.filter(i => i.id !== id);
+  edicaoInline = null;
+  reconstruirCatalogo();
+  salvar();
+  render();
+}
+
+function removerDaPrevia(id) {
+  listaPrevia = listaPrevia.filter(i => i.id !== id);
+  if (edicaoInline?.contexto === "previa" && edicaoInline.id === id) edicaoInline = null;
+  salvar();
+  render();
+}
+
+function removerDoCarrinho(id) {
+  itens = itens.filter(i => i.id !== id);
+  if (edicaoInline?.contexto === "carrinho" && edicaoInline.id === id) edicaoInline = null;
+  reconstruirCatalogo();
+  salvar();
+  render();
+}
+
+// =====================================================================
+// SUGESTÕES RÁPIDAS (agora alimentam a lista prévia, não o carrinho)
+// =====================================================================
+
+function adicionarSugestaoAPrevia(chave) {
+  const item = catalogo[chave];
+  if (!item) return;
+
+  const jaPresente = [...listaPrevia, ...itens]
+    .some(i => chaveProduto(i.nome, i.marca) === chave);
+  if (jaPresente) return;
+
+  listaPrevia.push({
+    id: novoId(),
+    nome: item.nome,
+    marca: item.marca || null,
+    categoria: item.categoria,
     quantidade: 1,
-    categoria: item.categoria || null,
-    status: "pendente",
-    precoEstimado: true,
-    variacao: null
+    precoEstimado: null // deixa em aberto pra sempre refletir o preço mais atual do catálogo
   });
 
   salvar();
   render();
 }
 
-// ===== SUGESTÕES DE LISTA =====
 function renderSugestoes() {
   const box = document.getElementById("sugestoesLista");
-  const jaNaLista = new Set(itens.map(i => normalizar(i.nome)));
+  const jaPresente = new Set([
+    ...listaPrevia.map(i => chaveProduto(i.nome, i.marca)),
+    ...itens.map(i => chaveProduto(i.nome, i.marca))
+  ]);
 
   const sugestoes = Object.entries(catalogo)
-    .filter(([chave, i]) => i.vezesComprado >= 2 && !jaNaLista.has(chave))
+    .filter(([chave, i]) => i.vezesComprado >= 2 && !jaPresente.has(chave))
     .sort((a, b) => b[1].vezesComprado - a[1].vezesComprado)
     .slice(0, 12);
 
   if (sugestoes.length === 0) {
-    box.innerHTML = "<p class='vazio'>Compre algumas vezes para ver sugestões automáticas aqui.</p>";
+    box.innerHTML = "<p class='vazio'>Compre alguns itens 2+ vezes para ver sugestões automáticas aqui.</p>";
     return;
   }
 
   box.innerHTML = sugestoes.map(([chave, i]) => `
-    <button class="chip" onclick="adicionarSugestao('${escaparHTML(chave)}')">
-      + ${escaparHTML(i.nome)} <span class="chip-preco">R$ ${dinheiro(i.ultimoPreco)}</span>
+    <button class="chip" onclick="adicionarSugestaoAPrevia('${escaparAtributoJS(chave)}')">
+      + ${escaparHTML(i.nome)}${i.marca ? " (" + escaparHTML(i.marca) + ")" : ""}
+      <span class="chip-preco">R$ ${dinheiro(i.ultimoPreco)}</span>
     </button>
   `).join("");
 }
 
-// ===== TOTAIS =====
-function calcularTotais() {
-  return itens.reduce((acc, item) => {
-    const subtotal = Number(item.preco || 0) * Number(item.quantidade || 0);
-    acc.total += subtotal;
-    if (itemEhPendente(item)) acc.estimado += subtotal;
-    else acc.confirmado += subtotal;
-    if (itemEhPendente(item)) acc.pendentes += 1;
-    return acc;
-  }, { total: 0, estimado: 0, confirmado: 0, pendentes: 0 });
+// =====================================================================
+// EDIÇÃO INLINE
+// =====================================================================
+
+function iniciarEdicaoInline(contexto, id) {
+  edicaoInline = { contexto, id };
+  render();
+
+  // rola até o card em edição, já que ele pode estar no meio de uma lista longa
+  const agendar = window.requestAnimationFrame || (fn => setTimeout(fn, 0));
+  agendar(() => {
+    document.getElementById(`item-${contexto}-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
 }
 
-// ===== EXPORT / IMPORT =====
-function exportar() {
-  const data = {
-    versaoDados: 2,
-    itens,
-    orcamento,
-    timestamp,
-    catalogo,
-    historicoFeiras
-  };
-
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  const a = document.createElement("a");
-  const url = URL.createObjectURL(blob);
-  a.href = url;
-  a.download = "feira-backup.json";
-  a.click();
-  URL.revokeObjectURL(url);
+function cancelarEdicaoInline() {
+  edicaoInline = null;
+  render();
 }
 
-function importar(e) {
-  const file = e.target.files[0];
-  if (!file) return;
+function lerCamposEdicao(id) {
+  const nome = limparNome(document.getElementById(`edit-nome-${id}`).value);
+  const marca = limparNome(document.getElementById(`edit-marca-${id}`).value) || null;
+  const categoria = limparNome(document.getElementById(`edit-categoria-${id}`).value) || null;
 
-  const reader = new FileReader();
+  const quantidadeValor = document.getElementById(`edit-quantidade-${id}`).value.trim();
+  const quantidade = quantidadeValor !== "" ? parseInt(quantidadeValor, 10) : 1;
 
-  reader.onload = function() {
-    try {
-      const data = JSON.parse(reader.result);
+  const precoValor = document.getElementById(`edit-preco-${id}`).value.trim();
+  const preco = precoValor !== "" ? parseFloat(precoValor) : NaN;
 
-      itens = Array.isArray(data.itens)
-        ? data.itens.map(garantirEstruturaItem).filter(i => i.nome)
-        : [];
-      orcamento = Number(data.orcamento) || 0;
-      historicoFeiras = Array.isArray(data.historicoFeiras)
-        ? data.historicoFeiras.map(normalizarHistorico)
-        : [];
+  if (!nome) {
+    alert("Informe o nome do produto.");
+    return null;
+  }
+  if (!Number.isFinite(quantidade) || quantidade <= 0) {
+    alert("A quantidade deve ser maior que zero.");
+    return null;
+  }
 
-      // O catálogo passa a ser derivado de compras confirmadas.
-      reconstruirCatalogo();
-
-      resetarFormulario();
-      salvar();
-      render();
-      alert("Importado com sucesso!");
-    } catch {
-      alert("Arquivo inválido");
-    }
-  };
-
-  reader.readAsText(file);
-  e.target.value = "";
+  return { nome, marca, categoria, quantidade, precoValor, preco };
 }
 
-// ===== FINALIZAR FEIRA =====
-function finalizarFeira() {
-  if (itens.length === 0) {
-    alert("Adicione itens antes de finalizar a feira.");
+function salvarEdicaoPrevia(id) {
+  const item = listaPrevia.find(i => i.id === id);
+  if (!item) return;
+
+  const dados = lerCamposEdicao(id);
+  if (!dados) return;
+
+  if (dados.precoValor !== "" && (!Number.isFinite(dados.preco) || dados.preco <= 0)) {
+    alert("Informe um preço válido, ou deixe em branco para usar a estimativa do catálogo.");
     return;
   }
 
-  const pendentes = itens.filter(itemEhPendente);
-  const mensagem = pendentes.length
-    ? `Ainda existem ${pendentes.length} item(ns) pendente(s). Apenas os itens confirmados serão arquivados; os pendentes permanecerão na lista.\n\nDeseja finalizar?`
-    : "Finalizar esta feira? Ela será salva no histórico e a lista atual será limpa.";
+  item.nome = dados.nome;
+  item.marca = dados.marca;
+  item.categoria = dados.categoria;
+  item.quantidade = dados.quantidade;
+  item.precoEstimado = Number.isFinite(dados.preco) ? dados.preco : null;
 
-  if (!confirm(mensagem)) return;
+  edicaoInline = null;
+  salvar();
+  render();
+}
 
-  const confirmados = itens.filter(item => !itemEhPendente(item));
+function salvarEdicaoCarrinho(id) {
+  const item = itens.find(i => i.id === id);
+  if (!item) return;
 
-  if (confirmados.length > 0) {
-    const totalConfirmado = confirmados.reduce((s, i) => s + i.preco * i.quantidade, 0);
-    historicoFeiras.unshift({
-      data: new Date().toLocaleString(),
-      itens: confirmados.map(item => ({ ...item, status: "confirmado", precoEstimado: false })),
-      total: Number(totalConfirmado.toFixed(2)),
-      orcamento
-    });
-    historicoFeiras = historicoFeiras.slice(0, 20);
+  const dados = lerCamposEdicao(id);
+  if (!dados) return;
+
+  if (!Number.isFinite(dados.preco) || dados.preco <= 0) {
+    alert("Informe um preço válido maior que zero.");
+    return;
   }
 
-  itens = pendentes;
+  const variacao = calcularVariacao(dados.nome, dados.marca, dados.preco);
+
+  item.nome = dados.nome;
+  item.marca = dados.marca;
+  item.categoria = dados.categoria;
+  item.quantidade = dados.quantidade;
+  item.preco = dados.preco;
+  item.variacao = variacao?.texto || null;
+
+  edicaoInline = null;
   reconstruirCatalogo();
   salvar();
   render();
 }
 
-// ===== RESET TOTAL =====
-function resetar() {
-  if (!confirm("Isso vai apagar TUDO, incluindo catálogo e histórico. Tem certeza?")) return;
+// =====================================================================
+// CATEGORIAS: colapsar/expandir e ordenação
+// =====================================================================
 
-  itens = [];
-  orcamento = 0;
-  catalogo = {};
-  historicoFeiras = [];
-  resetarFormulario();
-  salvar();
+function toggleCategoria(contexto, categoria) {
+  if (!categoriasColapsadas[contexto]) categoriasColapsadas[contexto] = {};
+  categoriasColapsadas[contexto][categoria] = !categoriasColapsadas[contexto][categoria];
+  localStorage.setItem("categoriasColapsadas", JSON.stringify(categoriasColapsadas));
   render();
 }
 
-// ===== HISTÓRICO =====
+function categoriaEstaColapsada(contexto, categoria) {
+  return !!categoriasColapsadas?.[contexto]?.[categoria];
+}
+
+function setOrdenacao(valor) {
+  ordenacao = valor === "alfabetica" ? "alfabetica" : "padrao";
+  localStorage.setItem("ordenacao", ordenacao);
+  render();
+}
+
+function ordenarItens(lista) {
+  if (ordenacao !== "alfabetica") return lista;
+  return [...lista].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+}
+
+function agruparPorCategoria(lista) {
+  const grupos = {};
+  lista.forEach(item => {
+    const cat = item.categoria || "Outros";
+    if (!grupos[cat]) grupos[cat] = [];
+    grupos[cat].push(item);
+  });
+  return grupos;
+}
+
+function categoriasOrdenadas(grupos) {
+  return Object.keys(grupos).sort((a, b) => {
+    const ia = ORDEM_CATEGORIAS.indexOf(a);
+    const ib = ORDEM_CATEGORIAS.indexOf(b);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  });
+}
+
+// =====================================================================
+// RENDER — itens individuais
+// =====================================================================
+
+function renderEdicaoPrevia(item) {
+  return `
+    <div class="item item-previa item-editando" id="item-previa-${item.id}">
+      <input id="edit-nome-${item.id}" value="${escaparHTML(item.nome)}" placeholder="Produto" list="sugestoes-produtos">
+      <input id="edit-marca-${item.id}" value="${escaparHTML(item.marca || "")}" placeholder="Marca (opcional)" list="sugestoes-marcas">
+      <input id="edit-categoria-${item.id}" value="${escaparHTML(item.categoria || "")}" placeholder="Categoria (opcional)">
+      <input id="edit-quantidade-${item.id}" type="number" min="1" step="1" value="${item.quantidade}" placeholder="Quantidade">
+      <input id="edit-preco-${item.id}" type="number" min="0" step="0.01" value="${item.precoEstimado ?? ""}" placeholder="Preço estimado (opcional)">
+      <div class="item-acoes">
+        <button class="botao-salvar" onclick="salvarEdicaoPrevia('${escaparAtributoJS(item.id)}')">💾 Salvar</button>
+        <button class="botao-secundario" onclick="cancelarEdicaoInline()">✖️ Cancelar</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderEdicaoCarrinho(item) {
+  return `
+    <div class="item item-carrinho item-editando" id="item-carrinho-${item.id}">
+      <input id="edit-nome-${item.id}" value="${escaparHTML(item.nome)}" placeholder="Produto" list="sugestoes-produtos">
+      <input id="edit-marca-${item.id}" value="${escaparHTML(item.marca || "")}" placeholder="Marca (opcional)" list="sugestoes-marcas">
+      <input id="edit-categoria-${item.id}" value="${escaparHTML(item.categoria || "")}" placeholder="Categoria (opcional)">
+      <input id="edit-quantidade-${item.id}" type="number" min="1" step="1" value="${item.quantidade}" placeholder="Quantidade">
+      <input id="edit-preco-${item.id}" type="number" min="0" step="0.01" value="${item.preco}" placeholder="Preço">
+      <div class="item-acoes">
+        <button class="botao-salvar" onclick="salvarEdicaoCarrinho('${escaparAtributoJS(item.id)}')">💾 Salvar</button>
+        <button class="botao-secundario" onclick="cancelarEdicaoInline()">✖️ Cancelar</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderItemPrevia(item) {
+  if (edicaoInline?.contexto === "previa" && edicaoInline.id === item.id) {
+    return renderEdicaoPrevia(item);
+  }
+
+  const preco = precoEstimadoAtual(item);
+  const precoTexto = preco
+    ? `≈ R$ ${dinheiro(preco * item.quantidade)}`
+    : "Preço ainda não definido";
+
+  return `
+    <div class="item item-previa" id="item-previa-${item.id}">
+      <div class="item-top">
+        <div class="item-principal">
+          <strong>${escaparHTML(item.nome)}</strong>
+          ${item.marca ? `<span class="marca">${escaparHTML(item.marca)}</span>` : ""}
+          <span class="qtd">x${item.quantidade}</span>
+        </div>
+        <div class="item-subtotal ${preco ? "estimado" : "sem-preco"}">${precoTexto}</div>
+      </div>
+      <div class="item-acoes">
+        <button class="botao-editar" onclick="iniciarEdicaoInline('previa','${escaparAtributoJS(item.id)}')">✏️ Editar</button>
+        <button class="botao-carrinho" onclick="adicionarAoCarrinhoDaPrevia('${escaparAtributoJS(item.id)}')">🛒 Ao carrinho</button>
+        <button class="botao-remover" onclick="removerDaPrevia('${escaparAtributoJS(item.id)}')">🗑️</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderItemCarrinho(item) {
+  if (edicaoInline?.contexto === "carrinho" && edicaoInline.id === item.id) {
+    return renderEdicaoCarrinho(item);
+  }
+
+  const sub = Number(item.preco || 0) * Number(item.quantidade || 0);
+
+  return `
+    <div class="item item-carrinho" id="item-carrinho-${item.id}">
+      <div class="item-top">
+        <div class="item-principal">
+          <strong>${escaparHTML(item.nome)}</strong>
+          ${item.marca ? `<span class="marca">${escaparHTML(item.marca)}</span>` : ""}
+          <span class="qtd">x${item.quantidade}</span>
+        </div>
+        <div class="item-subtotal">R$ ${dinheiro(sub)}</div>
+      </div>
+      ${item.variacao ? `<div class="variacao">${escaparHTML(item.variacao)}</div>` : ""}
+      <div class="item-acoes">
+        <button class="botao-editar" onclick="iniciarEdicaoInline('carrinho','${escaparAtributoJS(item.id)}')">✏️ Editar</button>
+        <button class="botao-secundario" onclick="moverParaListaPrevia('${escaparAtributoJS(item.id)}')">↩️ Lista prévia</button>
+        <button class="botao-remover" onclick="removerDoCarrinho('${escaparAtributoJS(item.id)}')">🗑️</button>
+      </div>
+    </div>
+  `;
+}
+
+// =====================================================================
+// RENDER — bloco agrupado por categoria (compartilhado pelas duas listas)
+// =====================================================================
+
+function renderListaAgrupada(containerId, contexto, lista, renderItemFn, mensagemVazia) {
+  const container = document.getElementById(containerId);
+
+  if (lista.length === 0) {
+    container.innerHTML = `<p class="vazio">${mensagemVazia}</p>`;
+    return;
+  }
+
+  const grupos = agruparPorCategoria(lista);
+  const categorias = categoriasOrdenadas(grupos);
+
+  container.innerHTML = categorias.map(cat => {
+    const colapsada = categoriaEstaColapsada(contexto, cat);
+    const itensDaCategoria = ordenarItens(grupos[cat]);
+    const itensHTML = colapsada ? "" : itensDaCategoria.map(renderItemFn).join("");
+
+    return `
+      <div class="categoria-bloco">
+        <div class="categoria-titulo" onclick="toggleCategoria('${contexto}','${escaparAtributoJS(cat)}')">
+          <span class="seta ${colapsada ? "seta-fechada" : ""}">▾</span>
+          <span>${escaparHTML(cat)}</span>
+          <span class="categoria-contagem">${grupos[cat].length}</span>
+        </div>
+        ${itensHTML}
+      </div>
+    `;
+  }).join("");
+}
+
+// =====================================================================
+// HISTÓRICO
+// =====================================================================
+
 function toggleHistorico() {
   const box = document.getElementById("historicoContainer");
   box.style.display = box.style.display === "none" ? "block" : "none";
@@ -500,110 +818,156 @@ function renderHistorico() {
     <div class="historico-item">
       <div><strong>${escaparHTML(f.data)}</strong></div>
       <div>Total: R$ ${dinheiro(f.total)} ${f.orcamento ? "/ Orçamento: R$ " + dinheiro(f.orcamento) : ""}</div>
-      <div class="categoria">${f.itens.length} itens confirmados</div>
+      <div class="categoria">${f.itens.length} itens</div>
     </div>
   `).join("");
 }
 
-// ===== RENDER =====
-function render() {
-  document.getElementById("timestamp").innerText =
-    "Última atualização: " + (timestamp || "—");
+// =====================================================================
+// FINALIZAR FEIRA / RESET
+// =====================================================================
 
-  document.getElementById("orcamento").value = orcamento || "";
-
-  const totais = calcularTotais();
-  const lista = document.getElementById("lista");
-  lista.innerHTML = "";
-
-  const resumo = document.getElementById("resumoLista");
+function finalizarFeira() {
   if (itens.length === 0) {
-    resumo.innerHTML = "<span>Nenhum item na lista.</span>";
-  } else {
-    resumo.innerHTML = `
-      <span><strong>${itens.length}</strong> item(ns)</span>
-      ${totais.pendentes ? `<span class="resumo-pendente">${totais.pendentes} pendente(s)</span>` : ""}
-    `;
+    alert("Adicione itens ao carrinho antes de finalizar a feira.");
+    return;
   }
 
-  const grupos = {};
-  itens.forEach(item => {
-    const cat = item.categoria || "Outros";
-    if (!grupos[cat]) grupos[cat] = [];
-    grupos[cat].push(item);
+  if (!confirm("Finalizar esta feira? Os itens do carrinho vão para o histórico e o carrinho fica vazio. A lista prévia não é afetada.")) return;
+
+  const total = itens.reduce((s, i) => s + i.preco * i.quantidade, 0);
+
+  historicoFeiras.unshift({
+    data: new Date().toLocaleString(),
+    itens: itens.map(i => ({
+      nome: i.nome, marca: i.marca, preco: i.preco, quantidade: i.quantidade, categoria: i.categoria
+    })),
+    total: Number(total.toFixed(2)),
+    orcamento
   });
+  historicoFeiras = historicoFeiras.slice(0, 20);
 
-  const categoriasOrdenadas = Object.keys(grupos).sort((a, b) => {
-    const ia = ORDEM_CATEGORIAS.indexOf(a);
-    const ib = ORDEM_CATEGORIAS.indexOf(b);
-    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
-  });
+  itens = [];
+  edicaoInline = null;
+  reconstruirCatalogo();
+  salvar();
+  render();
+}
 
-  categoriasOrdenadas.forEach(cat => {
-    lista.innerHTML += `<div class="categoria-titulo">${escaparHTML(cat)}</div>`;
+function resetar() {
+  if (!confirm("Isso vai apagar TUDO: carrinho, lista prévia, catálogo e histórico. Tem certeza?")) return;
 
-    grupos[cat].forEach(item => {
-      const sub = Number(item.preco || 0) * Number(item.quantidade || 0);
-      const pendente = itemEhPendente(item);
-      const conhecido = !!catalogo[normalizar(item.nome)];
-      const estadoTexto = pendente
-        ? (conhecido ? "🟡 Pendente · preço estimado" : "🟠 Pendente · preço ainda não cadastrado")
-        : "✅ Confirmado";
+  itens = [];
+  listaPrevia = [];
+  orcamento = 0;
+  catalogo = {};
+  historicoFeiras = [];
+  edicaoInline = null;
 
-      const precoExibido = sub > 0
-        ? `R$ ${dinheiro(sub)}`
-        : "Preço não definido";
+  salvar();
+  render();
+}
 
-      lista.innerHTML += `
-        <div class="item ${pendente ? "item-pendente" : "item-confirmado"}">
-          <div class="item-top">
-            <div class="item-principal">
-              <strong>${escaparHTML(item.nome)}</strong>
-              <span>x${item.quantidade}</span>
-            </div>
-            <div class="item-subtotal ${pendente && !conhecido ? "sem-preco" : ""}">${precoExibido}</div>
-          </div>
-          <div class="item-meta">${estadoTexto}</div>
-          ${pendente && conhecido ? `<div class="estimativa">Estimativa usando última compra: R$ ${dinheiro(item.preco)} · ajuste no mercado para confirmar.</div>` : ""}
-          ${pendente && !conhecido ? `<div class="novo-produto">Este produto ainda não existe no catálogo. Informe o preço no mercado para cadastrá-lo.</div>` : ""}
-          ${item.variacao ? `<div class="variacao">${escaparHTML(item.variacao)}</div>` : ""}
-          <div class="item-acoes">
-            <button class="botao-editar" onclick="iniciarEdicao('${item.id}')">✏️ Editar</button>
-            <button class="botao-remover" onclick="remover('${item.id}')">🗑️ Remover</button>
-          </div>
-        </div>
-      `;
-    });
-  });
+// =====================================================================
+// EXPORT / IMPORT
+// =====================================================================
 
-  document.getElementById("total").innerText = dinheiro(totais.total);
-  document.getElementById("totalConfirmado").innerText = dinheiro(totais.confirmado);
-  document.getElementById("totalEstimado").innerText = dinheiro(totais.estimado);
+function exportar() {
+  const data = { versaoDados: 3, itens, listaPrevia, orcamento, timestamp, catalogo, historicoFeiras };
 
-  const indicadorEstimativa = document.getElementById("indicadorEstimativa");
-  indicadorEstimativa.style.display = totais.estimado > 0 ? "block" : "none";
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  a.href = url;
+  a.download = "feira-backup.json";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importar(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = function () {
+    try {
+      const data = JSON.parse(reader.result);
+      const migrado = migrarParaV3(data);
+
+      itens = migrado.itens;
+      listaPrevia = migrado.listaPrevia;
+      orcamento = migrado.orcamento;
+      if (migrado.timestamp) timestamp = migrado.timestamp;
+      historicoFeiras = migrado.historicoFeiras;
+      edicaoInline = null;
+
+      reconstruirCatalogo();
+      salvar();
+      render();
+      alert("Importado com sucesso!");
+    } catch (err) {
+      console.error(err);
+      alert("Arquivo inválido");
+    }
+  };
+
+  reader.readAsText(file);
+  e.target.value = "";
+}
+
+// =====================================================================
+// RENDER PRINCIPAL
+// =====================================================================
+
+function render() {
+  document.getElementById("timestamp").innerText = "Última atualização: " + (timestamp || "—");
+  document.getElementById("orcamento").value = orcamento || "";
+  document.getElementById("ordenacao").value = ordenacao;
+
+  const totalCarrinho = itens.reduce((s, i) => s + Number(i.preco || 0) * Number(i.quantidade || 0), 0);
+  document.getElementById("total").innerText = dinheiro(totalCarrinho);
 
   const bar = document.getElementById("progress");
   if (orcamento > 0) {
-    const percentual = (totais.total / orcamento) * 100;
-    bar.style.width = Math.min(percentual, 100) + "%";
-    bar.className = percentual < 70 ? "baixo" : percentual < 100 ? "medio" : "alto";
+    const p = (totalCarrinho / orcamento) * 100;
+    bar.style.width = Math.min(p, 100) + "%";
+    bar.className = p < 70 ? "baixo" : p < 100 ? "medio" : "alto";
   } else {
     bar.style.width = "0%";
     bar.className = "baixo";
   }
 
-  popularDatalist();
+  const totalEstimadoPrevia = listaPrevia.reduce((s, i) => s + (precoEstimadoAtual(i) || 0) * i.quantidade, 0);
+  document.getElementById("totalPrevia").innerText = dinheiro(totalEstimadoPrevia);
+
+  document.getElementById("resumoCarrinho").innerText =
+    itens.length ? `${itens.length} item(ns) no carrinho` : "Carrinho vazio";
+  document.getElementById("resumoPrevia").innerText =
+    listaPrevia.length ? `${listaPrevia.length} item(ns) na lista prévia` : "Lista prévia vazia";
+
+  renderListaAgrupada(
+    "listaPreviaContainer", "previa", listaPrevia, renderItemPrevia,
+    "Nenhum item na lista prévia. Adicione produtos para planejar a próxima feira."
+  );
+  renderListaAgrupada(
+    "listaCarrinhoContainer", "carrinho", itens, renderItemCarrinho,
+    "Carrinho vazio. Adicione itens direto ou traga da lista prévia."
+  );
+
+  popularDatalists();
   renderSugestoes();
   renderHistorico();
 }
 
-// ===== PWA =====
+// =====================================================================
+// PWA + INICIALIZAÇÃO
+// =====================================================================
+
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("service-worker.js").catch(console.error);
 }
 
-// Migra dados antigos sem alterar seu significado.
 reconstruirCatalogo();
 salvar();
 render();
