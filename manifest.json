@@ -1,18 +1,35 @@
 {
+
   "name": "Feira Inteligente",
+
   "short_name": "Feira",
-  "description": "Lista prévia e carrinho de compras com catálogo, marcas, edição inline, estimativas e histórico de feiras.",
+
+  "description": "Lista e carrinho de compras com estimativas de hortifrúti por peso, catálogo e histórico de feiras.",
+
   "start_url": ".",
+
   "scope": ".",
+
   "display": "standalone",
+
   "background_color": "#ffffff",
+
   "theme_color": "#2ecc71",
+
   "icons": [
+
     {
+
       "src": "icon.svg",
+
       "sizes": "any",
+
       "type": "image/svg+xml",
+
       "purpose": "any"
+
     }
+
   ]
+
 }

@@ -1,62 +1,43 @@
 # 🛒 Feira Inteligente
 
-App de controle de orçamento e lista de compras, com catálogo de produtos, lista prévia separada do carrinho, edição inline, marca opcional, histórico de feiras e funcionamento offline como PWA.
+App de controle de orçamento e lista de compras, com catálogo de produtos, lista prévia separada do carrinho, edição inline, histórico de feiras e um módulo de hortifrúti com estimativa por peso. O projeto continua sendo uma PWA estática, adequada ao GitHub Pages e ao uso offline.
 
-## O modelo: lista prévia vs. carrinho
+## Lista prévia vs. carrinho
 
-O app trabalha com duas listas independentes:
+O app mantém duas listas independentes:
 
-- **Lista prévia** — planejamento. Um item aqui pode ter só o nome; preço e quantidade são estimativas (o app usa o último preço conhecido no catálogo, se houver). **Não conta no orçamento.**
-- **Carrinho** — a feira em andamento de fato. Todo item aqui tem preço confirmado e **é o que conta no total e na barra de orçamento**.
+- **Lista prévia** — planejamento. Pode conter itens sem preço confirmado e não entra no orçamento.
+- **Carrinho** — compras confirmadas. É o que entra no total e na barra de orçamento.
 
-Fluxo típico:
+## Hortifrúti
 
-1. Em casa, monte a lista prévia (nome, e opcionalmente marca/categoria/quantidade). Sugestões automáticas de produtos recorrentes aparecem prontas pra adicionar com um toque.
-2. No mercado, confira/ajuste o preço de cada item (edição inline, sem sair da lista) e toque em **"🛒 Ao carrinho"**. Isso confirma a compra e desconta do orçamento.
-3. Itens novos, não planejados, podem ser adicionados direto ao carrinho pelo formulário do topo (basta informar o preço).
-4. No fim, toque em **"✅ Finalizar feira"**: os itens do carrinho vão pro histórico e o catálogo é atualizado. A lista prévia não é afetada — o que sobrou nela continua disponível pra próxima feira.
+O módulo de hortifrúti usa uma base inicial de produtos (`hortifruti.js`) com nome, variedade e peso médio por unidade. O peso é uma referência inicial e pode ser ajustado na própria estimativa.
 
-Um item do carrinho também pode ser devolvido pra lista prévia (botão **"↩️ Lista prévia"**), caso você reconsidere uma compra sem perder o registro do item.
+O preço de mercado é tratado como referência separada dos preços confirmados de compra. Cada referência pode receber:
 
-## Marca (opcional)
+- preço por kg;
+- fonte informada pelo usuário;
+- data da atualização.
 
-Cada item pode ter uma marca separada do nome (ex: nome "Leite", marca "Italac"). Isso é opcional — nada obriga a usar. O catálogo identifica produtos por **nome + marca**, então "Leite Italac" e "Leite Piracanjuba" viram entradas diferentes, cada uma com seu próprio histórico de preço.
+A estimativa segue:
 
-Se você digitar um nome que já existe no catálogo em mais de uma marca, o app mostra as opções conhecidas (com preço de cada uma) em vez de adivinhar qual você quer.
+```text
+peso_estimado = quantidade × peso_médio
+valor_estimado = (peso_estimado / 1000) × preço_por_kg
+```
 
-## Edição inline
+O resultado aparece como **valor estimado**. Um item de hortifrúti pode ser enviado à lista prévia. Para confirmar a compra, o app pede peso real e preço real por kg; somente esses valores entram no orçamento.
 
-Tanto na lista prévia quanto no carrinho, o botão **"✏️ Editar"** transforma o próprio item da lista em um mini-formulário (nome, marca, categoria, quantidade, preço), sem precisar rolar até o topo da página. Isso serve tanto pra corrigir um erro de digitação rápido quanto pra completar informações que faltavam (ex: preço de um item da lista prévia, direto no mercado).
+As referências de preço ficam no `localStorage` e também são incluídas no backup JSON.
 
-## Categorias: colapsar e ordenar
+## Catálogo normal
 
-- Toque no título de uma categoria (ex: "MERCEARIA") pra recolher/expandir os itens dela. O estado fica salvo entre sessões.
-- Um seletor de ordenação permite alternar entre "Como foi adicionado" e "Alfabética (A–Z)", aplicado às duas listas. A estrutura já deixa espaço para outros modos de ordenação no futuro (por preço, por categoria isolada, etc.), caso seja necessário.
-
-## Catálogo
-
-O catálogo é reconstruído a partir de compras confirmadas — itens do carrinho e itens arquivados no histórico. A lista prévia nunca altera o catálogo (ela é só planejamento, ainda não é uma compra real).
+O catálogo de compras continua separado do módulo de hortifrúti. Produtos normais usam preço por unidade e histórico de compras; itens hortifrúti usam peso e preço por kg. Essa separação evita comparar grandezas diferentes.
 
 ## Backup
 
-O JSON exportado (`versaoDados: 3`) contém lista prévia, carrinho, orçamento, catálogo e histórico. **Backups antigos continuam funcionando**:
+O formato atual é `versaoDados: 4`. Backups anteriores continuam sendo migrados automaticamente. O backup novo inclui as referências de preço do hortifrúti.
 
-- Backups no formato anterior (com itens marcados como "pendente"/"confirmado") têm os pendentes convertidos automaticamente em itens de lista prévia, e os confirmados em itens de carrinho.
-- Backups ainda mais antigos (sem esse campo de status) são tratados como se todos os itens já fossem confirmados — comportamento idêntico ao que tinham originalmente.
+## Publicação
 
-## Publicação no GitHub Pages
-
-1. Envie os arquivos desta pasta para a raiz de um repositório.
-2. Vá em **Settings → Pages**, selecione a branch `main` e a pasta `/ (root)`.
-3. Acesse o endereço fornecido pelo GitHub Pages.
-4. No celular, abra o endereço e use "Adicionar à tela inicial".
-
-## Atualizando o app depois de mudanças
-
-Sempre que `app.js`, `index.html`, `style.css`, `manifest.json` ou `icon.svg` forem alterados, suba o número da versão em `service-worker.js`:
-
-```js
-const CACHE = "feira-cache-v6"; // por exemplo
-```
-
-Isso garante que o celular baixe a versão nova em vez de continuar servindo do cache.
+O projeto continua adequado ao GitHub Pages e ao uso como PWA. O service worker também faz cache de `hortifruti.js`. Depois de alterar arquivos em cache, incremente a constante `CACHE` em `service-worker.js`.

@@ -1,105 +1,246 @@
 <!DOCTYPE html>
+
 <html lang="pt-BR">
+
 <head>
+
   <meta charset="UTF-8">
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <meta name="theme-color" content="#2ecc71">
+
   <title>Feira Inteligente</title>
+
   <link rel="stylesheet" href="style.css">
+
   <link rel="manifest" href="manifest.json">
+
   <link rel="icon" href="icon.svg" type="image/svg+xml">
+
   <link rel="apple-touch-icon" href="icon.svg">
+
 </head>
+
 <body>
+
 <div class="container">
+
   <h1>🛒 Feira Inteligente</h1>
+
   <p id="timestamp"></p>
 
+  
+
   <section>
+
     <h2>💰 Orçamento</h2>
+
     <input type="number" id="orcamento" min="0" step="0.01" placeholder="Orçamento">
+
     <button onclick="setOrcamento()">Salvar orçamento</button>
 
+  
+
     <div class="progress-bar" aria-label="Consumo do orçamento">
+
       <div id="progress"></div>
+
     </div>
+
+  
 
     <div class="total-principal">Total no carrinho: R$ <span id="total">0.00</span></div>
+
     <p class="ajuda">Só o carrinho conta pro orçamento. A lista prévia é só planejamento.</p>
 
+  
+
     <button class="botao-secundario" onclick="finalizarFeira()">✅ Finalizar feira</button>
+
   </section>
 
-  <section class="form-section">
-    <h2>➕ Adicionar item</h2>
-    <p class="ajuda">Em casa: preencha o que souber e mande para a <strong>lista prévia</strong>. No mercado: confirme o preço e mande direto ao <strong>carrinho</strong>.</p>
+  
 
-    <input id="nome" placeholder="Produto" list="sugestoes-produtos" oninput="preencherAuto()">
-    <datalist id="sugestoes-produtos"></datalist>
-    <p id="hint-produto" class="hint" style="display:none"></p>
+    <section class="hortifruti-section">
+    <div class="secao-cabecalho">
+      <h2>🥬 Hortifrúti</h2>
+    </div>
+    <p class="ajuda">Estime o custo por peso a partir da quantidade e do peso médio. O preço aqui é uma <strong>referência</strong>; ele não entra no orçamento até a compra ser confirmada.</p>
 
-    <input id="marca" placeholder="Marca (opcional)" list="sugestoes-marcas">
-    <datalist id="sugestoes-marcas"></datalist>
+    <select id="hortifruti-produto" onchange="preencherFormularioHortifruti()" aria-label="Produto de hortifrúti"></select>
+    <input id="hortifruti-variedade" readonly placeholder="Variedade">
 
-    <input id="categoria" placeholder="Categoria (opcional)">
-    <input id="quantidade" type="number" min="1" step="1" placeholder="Quantidade (padrão: 1)">
-    <input id="preco" type="number" min="0" step="0.01" placeholder="Preço (opcional para lista prévia)">
+    <div class="hortifruti-grade">
+      <div>
+        <label for="hortifruti-quantidade">Quantidade</label>
+        <input id="hortifruti-quantidade" type="number" min="1" step="1" value="1" oninput="atualizarEstimativaHortifruti()">
+      </div>
+      <div>
+        <label for="hortifruti-peso-medio">Peso médio (g/un.)</label>
+        <input id="hortifruti-peso-medio" type="number" min="1" step="1" oninput="atualizarEstimativaHortifruti()">
+      </div>
+    </div>
+
+    <input id="hortifruti-preco-kg" type="number" min="0" step="0.01" placeholder="Preço de referência por kg" oninput="atualizarEstimativaHortifruti()">
+    <input id="hortifruti-fonte" placeholder="Fonte do preço (ex.: pesquisa própria, feira local)">
+    <p id="hortifruti-atualizado" class="hint"></p>
+
+    <div class="hortifruti-resultado">
+      <div><span>Peso estimado</span><strong id="hortifruti-peso-estimado">—</strong></div>
+      <div><span>Valor estimado</span><strong id="hortifruti-valor-estimado">—</strong></div>
+    </div>
+    <p class="hortifruti-aviso">O tamanho real varia entre unidades. Use a média apenas para planejamento.</p>
 
     <div class="form-botoes">
+      <button class="botao-secundario" onclick="salvarReferenciaHortifruti()">💾 Salvar preço/kg</button>
+      <button class="botao-previa" onclick="adicionarHortifrutiAPrevia()">📝 Adicionar à lista prévia</button>
+    </div>
+  </section>
+
+<section class="form-section">
+
+    <h2>➕ Adicionar item</h2>
+
+    <p class="ajuda">Em casa: preencha o que souber e mande para a <strong>lista prévia</strong>. No mercado: confirme o preço e mande direto ao <strong>carrinho</strong>.</p>
+
+  
+
+    <input id="nome" placeholder="Produto" list="sugestoes-produtos" oninput="preencherAuto()">
+
+    <datalist id="sugestoes-produtos"></datalist>
+
+    <p id="hint-produto" class="hint" style="display:none"></p>
+
+  
+
+    <input id="marca" placeholder="Marca (opcional)" list="sugestoes-marcas">
+
+    <datalist id="sugestoes-marcas"></datalist>
+
+  
+
+    <input id="categoria" placeholder="Categoria (opcional)">
+
+    <input id="quantidade" type="number" min="1" step="1" placeholder="Quantidade (padrão: 1)">
+
+    <input id="preco" type="number" min="0" step="0.01" placeholder="Preço (opcional para lista prévia)">
+
+  
+
+    <div class="form-botoes">
+
       <button class="botao-previa" onclick="adicionarAListaPrevia()">📝 Adicionar à lista prévia</button>
+
       <button class="botao-carrinho" onclick="adicionarAoCarrinho()">🛒 Adicionar ao carrinho</button>
+
     </div>
+
   </section>
 
+  
+
   <section>
+
     <div class="secao-cabecalho">
+
       <h2>🔀 Ordenar listas</h2>
+
     </div>
+
     <select id="ordenacao" onchange="setOrdenacao(this.value)">
+
       <option value="padrao">Como foi adicionado</option>
+
       <option value="alfabetica">Alfabética (A–Z)</option>
+
     </select>
+
     <p class="ajuda">Vale para a lista prévia e para o carrinho. Toque no título de uma categoria para recolher/expandir.</p>
+
   </section>
 
+  
+
   <section>
+
     <h2>🛍️ Sugestões rápidas</h2>
+
     <p class="ajuda">Toque para mandar direto para a lista prévia (o preço vem do catálogo como estimativa).</p>
+
     <div id="sugestoesLista"></div>
+
   </section>
 
+  
+
   <section>
+
     <div class="secao-cabecalho">
+
       <h2>📝 Lista prévia</h2>
+
       <span id="resumoPrevia" class="resumo-lista"></span>
+
     </div>
+
     <div class="total-secundario">Estimativa total: R$ <span id="totalPrevia">0.00</span> <span class="ajuda-inline">(não conta no orçamento)</span></div>
+
     <div id="listaPreviaContainer"></div>
+
   </section>
 
+  
+
   <section>
+
     <div class="secao-cabecalho">
+
       <h2>🧾 Carrinho (feira em andamento)</h2>
+
       <span id="resumoCarrinho" class="resumo-lista"></span>
+
     </div>
+
     <div id="listaCarrinhoContainer"></div>
+
   </section>
 
+  
+
   <section>
+
     <h2>💾 Backup</h2>
+
     <p class="ajuda">Exporta lista prévia, carrinho, catálogo e histórico juntos. Backups antigos continuam funcionando.</p>
+
     <button onclick="exportar()">Exportar JSON</button>
+
     <input type="file" accept="application/json,.json" onchange="importar(event)">
+
   </section>
 
+  
+
   <section>
+
     <h2>📜 Histórico de feiras</h2>
+
     <button class="botao-secundario" onclick="toggleHistorico()">Ver/ocultar histórico</button>
+
     <div id="historicoContainer" style="display:none"></div>
+
   </section>
+
+  
 
   <button class="botao-perigo" onclick="resetar()">🗑️ Apagar tudo (avançado)</button>
+
 </div>
+
+<script src="hortifruti.js"></script>
 <script src="app.js"></script>
+
 </body>
+
 </html>

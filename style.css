@@ -1,343 +1,656 @@
 * {
+
   box-sizing: border-box;
+
 }
 
 body {
+
   font-family: Arial, sans-serif;
+
   background: #f4f4f4;
+
   margin: 0;
+
   padding: 10px;
+
   color: #222;
+
 }
 
 .container {
+
   max-width: 640px;
+
   margin: auto;
+
   background: white;
+
   padding: 16px;
+
   border-radius: 12px;
+
 }
 
 h1, h2 {
+
   margin-bottom: 8px;
+
 }
 
 section {
+
   margin-bottom: 24px;
+
 }
 
 .secao-cabecalho {
+
   display: flex;
+
   align-items: baseline;
+
   justify-content: space-between;
+
   gap: 8px;
+
   flex-wrap: wrap;
+
 }
 
 input, button, select {
+
   width: 100%;
+
   padding: 13px;
+
   margin: 6px 0;
+
   font-size: 16px;
+
   border-radius: 8px;
+
   box-sizing: border-box;
+
 }
 
 input, select {
+
   border: 1px solid #ccc;
+
   background: #fff;
+
 }
 
 button {
+
   background: #2ecc71;
+
   color: white;
+
   border: none;
+
   font-weight: bold;
+
   cursor: pointer;
+
 }
 
 button:active {
+
   transform: translateY(1px);
+
 }
 
 .botao-secundario {
+
   background: #34495e;
+
 }
 
 .botao-perigo {
+
   background: #e74c3c;
+
   margin-top: 20px;
+
 }
 
 .botao-previa {
+
   background: #8e44ad;
+
 }
 
 .botao-carrinho {
+
   background: #2ecc71;
+
 }
 
 .form-botoes {
+
   display: flex;
+
   gap: 8px;
+
   flex-wrap: wrap;
+
 }
 
 .form-botoes button {
+
   flex: 1;
+
   min-width: 150px;
+
 }
 
 #timestamp {
+
   font-size: 12px;
+
   color: #777;
+
 }
 
 .total-principal {
+
   font-size: 20px;
+
   font-weight: bold;
+
   margin: 8px 0;
+
 }
 
 .total-secundario {
+
   font-size: 14px;
+
   color: #555;
+
   margin: 4px 0 10px 0;
+
 }
 
 .ajuda-inline {
+
   font-size: 12px;
+
   color: #999;
+
 }
 
 .progress-bar {
+
   background: #ddd;
+
   height: 20px;
+
   border-radius: 10px;
+
   margin: 10px 0;
+
   overflow: hidden;
+
 }
 
 #progress {
+
   height: 100%;
+
   width: 0%;
+
   border-radius: 10px;
+
   transition: width 0.3s ease, background 0.3s ease;
+
 }
 
 #progress.baixo { background: #2ecc71; }
+
 #progress.medio { background: #f39c12; }
+
 #progress.alto  { background: #e74c3c; }
 
 .ajuda {
+
   font-size: 12px;
+
   color: #888;
+
   margin: 0 0 8px 0;
+
 }
 
 .hint {
+
   font-size: 12px;
+
   color: #666;
+
   margin: -2px 0 6px 0;
+
 }
 
 .hint-novo {
+
   color: #a65b00;
+
 }
 
 .resumo-lista {
+
   font-size: 13px;
+
   color: #666;
+
 }
 
 /* ===== categorias (colapsáveis) ===== */
+
 .categoria-bloco {
+
   margin-top: 10px;
+
 }
 
 .categoria-titulo {
+
   display: flex;
+
   align-items: center;
+
   gap: 6px;
+
   font-size: 13px;
+
   font-weight: bold;
+
   text-transform: uppercase;
+
   color: #1e9e58;
+
   border-bottom: 2px solid #2ecc71;
+
   padding-bottom: 5px;
+
   cursor: pointer;
+
   user-select: none;
+
 }
 
 .categoria-titulo .seta {
+
   display: inline-block;
+
   transition: transform 0.15s ease;
+
   font-size: 12px;
+
 }
 
 .categoria-titulo .seta-fechada {
+
   transform: rotate(-90deg);
+
 }
 
 .categoria-contagem {
+
   margin-left: auto;
+
   color: #888;
+
   font-weight: normal;
+
   text-transform: none;
+
   font-size: 12px;
+
 }
 
 /* ===== itens ===== */
+
 .item {
+
   border-bottom: 1px solid #ddd;
+
   padding: 10px 0;
+
 }
 
 .item-previa {
+
   background: #faf5ff;
+
   padding: 10px 8px;
+
   border-radius: 8px;
+
   border-bottom: 1px solid #ecd9fb;
+
   margin: 6px 0;
+
 }
 
 .item-carrinho {
+
   background: #f6fffa;
+
   padding: 10px 8px;
+
   border-radius: 8px;
+
   border-bottom: 1px solid #d7f4e4;
+
   margin: 6px 0;
+
 }
 
 .item-top {
+
   display: flex;
+
   justify-content: space-between;
+
   align-items: center;
+
   gap: 10px;
+
 }
 
 .item-principal {
+
   display: flex;
+
   align-items: baseline;
+
   gap: 6px;
+
   flex-wrap: wrap;
+
   min-width: 0;
+
 }
 
 .item-principal strong {
+
   overflow-wrap: anywhere;
+
 }
 
 .marca {
+
   font-size: 12px;
+
   color: #8e44ad;
+
   background: #f1e4fa;
+
   padding: 1px 6px;
+
   border-radius: 8px;
+
 }
 
 .qtd {
+
   color: #777;
+
   font-size: 13px;
+
   white-space: nowrap;
+
 }
 
 .item-subtotal {
+
   font-weight: bold;
+
   white-space: nowrap;
+
 }
 
 .item-subtotal.estimado {
+
   color: #946200;
+
   font-weight: normal;
+
   font-size: 13px;
+
 }
 
 .item-subtotal.sem-preco {
+
   color: #999;
+
   font-weight: normal;
+
   font-size: 13px;
+
 }
 
 .variacao {
+
   font-size: 12px;
+
   font-weight: bold;
+
   color: #e67e22;
+
   margin-top: 4px;
+
 }
 
 .item-acoes {
+
   display: flex;
+
   gap: 6px;
+
   margin-top: 8px;
+
   flex-wrap: wrap;
+
 }
 
 .item-acoes button {
+
   width: auto;
+
   flex: 1;
+
   min-width: 90px;
+
   margin: 0;
+
   padding: 9px 8px;
+
   font-size: 12.5px;
+
 }
 
 .botao-editar { background: #2980b9; }
+
 .botao-remover { background: #e74c3c; }
+
 .botao-salvar { background: #27ae60; }
 
-/* ===== edição inline ===== */
-.item-editando {
-  background: #fffef0;
-  border: 1px dashed #d8c46a;
-}
-
-.item-editando input {
-  margin: 4px 0;
-}
-
-/* ===== sugestões (chips) ===== */
-.chip {
-  display: inline-block;
-  width: auto;
-  background: #eafaf1;
-  border: 1px solid #2ecc71;
-  color: #1e8449;
-  padding: 8px 12px;
-  border-radius: 20px;
-  margin: 4px 4px 4px 0;
-  font-size: 13px;
-  cursor: pointer;
-  font-weight: normal;
-}
-
-.chip-preco {
-  color: #666;
-}
-
-.vazio {
-  font-size: 13px;
-  color: #888;
-  font-style: italic;
-}
-
-.historico-item {
-  border-bottom: 1px solid #ddd;
-  padding: 10px 0;
-  font-size: 14px;
-}
-
-.form-section {
+/* ===== hortifrúti ===== */
+.hortifruti-section {
   border-top: 1px solid #eee;
   padding-top: 4px;
 }
 
+.hortifruti-section label {
+  display: block;
+  font-size: 12px;
+  color: #666;
+  margin: 3px 0 0;
+}
+
+.hortifruti-grade {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 8px;
+}
+
+.hortifruti-resultado {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.hortifruti-resultado > div {
+  background: #f6fffa;
+  border: 1px solid #d7f4e4;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.hortifruti-resultado span {
+  display: block;
+  font-size: 11px;
+  color: #777;
+}
+
+.hortifruti-resultado strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 18px;
+}
+
+.hortifruti-aviso,
+.horti-meta,
+.horti-variedade {
+  font-size: 12px;
+  color: #777;
+}
+
+.horti-variedade {
+  display: block;
+  margin: 2px 0 6px;
+}
+
+.hortifruti-confirmacao {
+  margin-top: 8px;
+  padding: 8px;
+  background: #f8f8f8;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+
+.hortifruti-confirmacao strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.hortifruti-confirmacao small {
+  display: block;
+  margin-top: 4px;
+  color: #777;
+  font-size: 11px;
+}
+
+/* ===== edição inline ===== */
+
+.item-editando {
+
+  background: #fffef0;
+
+  border: 1px dashed #d8c46a;
+
+}
+
+.item-editando input {
+
+  margin: 4px 0;
+
+}
+
+/* ===== sugestões (chips) ===== */
+
+.chip {
+
+  display: inline-block;
+
+  width: auto;
+
+  background: #eafaf1;
+
+  border: 1px solid #2ecc71;
+
+  color: #1e8449;
+
+  padding: 8px 12px;
+
+  border-radius: 20px;
+
+  margin: 4px 4px 4px 0;
+
+  font-size: 13px;
+
+  cursor: pointer;
+
+  font-weight: normal;
+
+}
+
+.chip-preco {
+
+  color: #666;
+
+}
+
+.vazio {
+
+  font-size: 13px;
+
+  color: #888;
+
+  font-style: italic;
+
+}
+
+.historico-item {
+
+  border-bottom: 1px solid #ddd;
+
+  padding: 10px 0;
+
+  font-size: 14px;
+
+}
+
+.form-section {
+
+  border-top: 1px solid #eee;
+
+  padding-top: 4px;
+
+}
+
 @media (max-width: 480px) {
+
   body { padding: 6px; }
+
   .container { padding: 12px; border-radius: 10px; }
+
   h1 { font-size: 22px; }
+
   h2 { font-size: 18px; }
+
   .item-top { align-items: flex-start; }
+
   .item-principal { flex-direction: column; align-items: flex-start; gap: 2px; }
+
   .form-botoes button { min-width: 100%; }
+  .hortifruti-grade, .hortifruti-resultado { grid-template-columns: 1fr; }
+
 }
