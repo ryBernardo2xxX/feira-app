@@ -636,6 +636,10 @@ button:active {
 
 }
 
+.menu-secao[hidden] {
+  display: none !important;
+}
+
 @media (max-width: 480px) {
 
   body { padding: 6px; }
