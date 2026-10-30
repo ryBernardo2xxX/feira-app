@@ -1,74 +1,11 @@
-const CACHE = "feira-cache-v7";
-
-  
-
-self.addEventListener("install", e => {
-
-  self.skipWaiting();
-
-  e.waitUntil(
-
-    caches.open(CACHE).then(cache => cache.addAll([
-
-      "./",
-
-      "./index.html",
-
-      "./style.css",
-
-      "./hortifruti.js",
-      "./app.js",
-
-      "./manifest.json",
-
-      "./icon.svg"
-
-    ]))
-
-  );
-
-});
-
-  
-
-self.addEventListener("activate", e => {
-
-  e.waitUntil(
-
-    caches.keys().then(keys => Promise.all(
-
-      keys.map(key => key !== CACHE ? caches.delete(key) : null)
-
-    ))
-
-  );
-
-  self.clients.claim();
-
-});
-
-  
-
-self.addEventListener("fetch", e => {
-
-  e.respondWith(
-
-    fetch(e.request)
-
-      .then(response => {
-
-        return caches.open(CACHE).then(cache => {
-
-          cache.put(e.request, response.clone());
-
-          return response;
-
-        });
-
-      })
-
-      .catch(() => caches.match(e.request))
-
-  );
-
+const CACHE="feira-cache-v8";
+const ARQUIVOS=["./","./index.html","./estilos/style.css","./estilos/menu.css","./hortifruti.js","./app.js","./menu.js","./manifest.json","./icon.svg"];
+self.addEventListener("install",e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ARQUIVOS)))});
+self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==CACHE).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
+self.addEventListener("fetch",e=>{
+  if(e.request.method!=="GET")return;
+  e.respondWith(fetch(e.request).then(r=>{
+    if(r.ok){const c=r.clone();caches.open(CACHE).then(ch=>ch.put(e.request,c))}
+    return r;
+  }).catch(()=>caches.match(e.request)));
 });

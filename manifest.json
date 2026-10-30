@@ -1,35 +1,11 @@
 {
-
   "name": "Feira Inteligente",
-
   "short_name": "Feira",
-
-  "description": "Lista e carrinho de compras com estimativas de hortifrúti por peso, catálogo e histórico de feiras.",
-
-  "start_url": ".",
-
-  "scope": ".",
-
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-
-  "background_color": "#ffffff",
-
-  "theme_color": "#2ecc71",
-
-  "icons": [
-
-    {
-
-      "src": "icon.svg",
-
-      "sizes": "any",
-
-      "type": "image/svg+xml",
-
-      "purpose": "any"
-
-    }
-
-  ]
-
+  "orientation": "portrait",
+  "background_color": "#eef3ef",
+  "theme_color": "#1f8a4c",
+  "icons": [{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}]
 }

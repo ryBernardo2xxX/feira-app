@@ -1,0 +1,109 @@
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{--bg:#eef3ef;--surf:#fff;--surf2:#f5f8f6;--txt:#1b2620;--mut:#5f6f66;--line:#dde6e0;--pri:#1a7a43;--pri-s:#e3f3ea;--prev:#7a4fc4;--prev-s:#f1ecfb;--perig:#c9402f;--warn:#a96500;--nav-h:64px;--r:14px;--sh:0 1px 2px rgba(20,40,30,.06),0 4px 14px rgba(20,40,30,.06);
+--b-pri:#1f8a4c;--b-prev:#7a4fc4;--b-esc:#3c5144;--b-edit:#2b6fb3;--b-del:#c9402f}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1713;--surf:#17211b;--surf2:#1d2a22;--txt:#e8f0ea;--mut:#9bb0a3;--line:#2a3a30;--pri:#4cc582;--pri-s:#163826;--prev:#b79cf5;--prev-s:#241d3a;--perig:#ef6a58;--warn:#e8a43a;--sh:0 1px 2px rgba(0,0,0,.3)}}
+html{color-scheme:light dark;-webkit-text-size-adjust:100%}
+body{margin:0;font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--txt);padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 16px)}
+.container{max-width:640px;margin:0 auto;padding:12px}
+h1{font-size:24px;margin:0 0 4px}
+h2{font-size:18px;margin:0 0 10px}
+section{margin:0}
+.menu-secao:not(#inicio),.menu-secao>section{background:var(--surf);border-radius:var(--r);padding:16px;box-shadow:var(--sh);margin-top:12px}
+#inicio>h1{margin:8px 4px 0}
+#timestamp{font-size:12px;color:var(--mut);margin:0 4px 4px}
+.secao-cabecalho{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.secao-cabecalho h2{margin:0}
+label{display:block;font-size:12px;color:var(--mut);margin:4px 0 0}
+
+/* campos e botões */
+input,select,button{width:100%;min-height:48px;margin:6px 0;padding:12px 14px;font:inherit;font-size:16px;border-radius:12px}
+input,select{color:var(--txt);background:var(--surf);border:1.5px solid var(--line)}
+input::placeholder{color:var(--mut);opacity:.8}
+input:focus,select:focus{outline:0;border-color:var(--b-pri);box-shadow:0 0 0 3px var(--pri-s)}
+input[readonly]{background:var(--surf2);color:var(--mut)}
+input[type=file]{font-size:14px;padding:10px;background:var(--surf2);border-style:dashed}
+button{font-weight:600;color:#fff;background:var(--b-pri);border:0;cursor:pointer;transition:transform .1s,filter .15s}
+button:hover{filter:brightness(1.08)}
+button:active{transform:scale(.98)}
+button:focus-visible{outline:3px solid var(--pri);outline-offset:2px}
+.botao-secundario{background:var(--b-esc)}
+.botao-previa{background:var(--b-prev)}
+.botao-carrinho{background:var(--b-pri)}
+.botao-editar{background:var(--b-edit)}
+.botao-remover{background:var(--b-del)}
+.botao-salvar{background:var(--b-pri)}
+.botao-perigo{background:transparent;color:var(--perig);border:1.5px solid var(--perig);margin-top:16px}
+.form-botoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.form-botoes button{flex:1 1 150px;width:auto;margin:0}
+
+/* orçamento */
+.total-principal{font-size:26px;font-weight:800;margin:6px 0;font-variant-numeric:tabular-nums}
+.total-secundario{font-size:14px;color:var(--mut);margin:4px 0 10px}
+.ajuda-inline{font-size:12px;opacity:.8}
+.progress-bar{background:var(--line);height:12px;border-radius:99px;margin:12px 0;overflow:hidden}
+#progress{height:100%;width:0;border-radius:99px;transition:width .3s,background .3s}
+#progress.baixo{background:#2ecc71}
+#progress.medio{background:#f39c12}
+#progress.alto{background:#e74c3c}
+.ajuda{font-size:13px;color:var(--mut);margin:0 0 8px}
+.hint{font-size:13px;color:var(--mut);margin:-2px 0 6px}
+.hint-novo{color:var(--warn)}
+.resumo-lista{font-size:13px;color:var(--mut)}
+.vazio{font-size:14px;color:var(--mut);text-align:center;padding:20px 8px;margin:0}
+
+/* categorias */
+.categoria-bloco{margin-top:12px}
+.categoria-titulo{display:flex;align-items:center;gap:8px;min-height:44px;font-size:14px;font-weight:700;color:var(--pri);border-bottom:2px solid var(--pri-s);cursor:pointer;user-select:none}
+.categoria-titulo .seta{display:inline-block;font-size:12px;transition:transform .15s}
+.categoria-titulo .seta-fechada{transform:rotate(-90deg)}
+.categoria-contagem{margin-left:auto;font-size:12px;font-weight:500;color:var(--mut);background:var(--surf2);padding:2px 9px;border-radius:99px}
+
+/* itens */
+.item{padding:12px;margin:8px 0;border-radius:12px;border:1px solid var(--line)}
+.item-previa{background:var(--prev-s);border-left:4px solid var(--prev)}
+.item-carrinho{background:var(--pri-s);border-left:4px solid var(--b-pri)}
+.item-editando{border:1.5px dashed var(--warn)}
+.item-editando input{margin:4px 0}
+.item-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.item-principal{display:flex;align-items:baseline;gap:4px 8px;flex-wrap:wrap;min-width:0}
+.item-principal strong{overflow-wrap:anywhere}
+.marca{font-size:12px;color:var(--mut);background:var(--surf);border:1px solid var(--line);padding:1px 8px;border-radius:99px}
+.qtd{font-size:13px;color:var(--mut);white-space:nowrap}
+.item-subtotal{font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.item-subtotal.estimado{color:var(--warn);font-weight:600;font-size:14px}
+.item-subtotal.sem-preco{color:var(--mut);font-weight:400;font-size:13px}
+.variacao{font-size:12px;font-weight:700;color:var(--warn);margin-top:4px}
+.item-acoes{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.item-acoes button{flex:1 1 auto;width:auto;min-width:96px;min-height:42px;margin:0;padding:8px;font-size:13px}
+.item-acoes .botao-remover{flex:0 0 48px;min-width:48px}
+
+/* hortifrúti */
+.hortifruti-grade,.hortifruti-resultado{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.hortifruti-resultado{margin:10px 0}
+.hortifruti-resultado>div{background:var(--pri-s);border-radius:12px;padding:10px 12px}
+.hortifruti-resultado span{display:block;font-size:12px;color:var(--mut)}
+.hortifruti-resultado strong{display:block;font-size:18px;font-variant-numeric:tabular-nums}
+.hortifruti-aviso,.horti-meta,.horti-variedade{font-size:12px;color:var(--mut)}
+.horti-variedade{display:block;margin:2px 0 6px}
+.horti-meta{margin-top:4px}
+.hortifruti-confirmacao{margin-top:8px;padding:10px;background:var(--surf);border:1px solid var(--line);border-radius:12px}
+.hortifruti-confirmacao strong{display:block;font-size:14px;margin-bottom:4px}
+.hortifruti-confirmacao small{display:block;margin-top:4px;color:var(--mut);font-size:12px}
+
+/* chips e histórico */
+.chip{display:inline-flex;align-items:center;gap:6px;width:auto;min-height:40px;margin:4px 6px 4px 0;padding:8px 14px;font-size:14px;font-weight:500;color:var(--pri);background:var(--pri-s);border:1px solid var(--line);border-radius:99px}
+.chip-preco{color:var(--mut);font-size:12px}
+.historico-item{padding:12px;margin-top:8px;background:var(--surf2);border-radius:12px;font-size:14px}
+.menu-secao[hidden]{display:none!important}
+
+/* aviso rápido */
+#toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 14px);transform:translate(-50%,12px);max-width:90vw;padding:10px 18px;background:#1b2620;color:#fff;font-size:14px;border-radius:99px;box-shadow:0 6px 20px rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:60}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media(min-width:768px){
+body{padding-bottom:32px}
+.container{padding:20px 12px}
+h1{font-size:28px}
+#toast{bottom:24px}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
