@@ -1,43 +1,32 @@
 # 🛒 Feira Inteligente
 
-App de controle de orçamento e lista de compras, com catálogo de produtos, lista prévia separada do carrinho, edição inline, histórico de feiras e um módulo de hortifrúti com estimativa por peso. O projeto continua sendo uma PWA estática, adequada ao GitHub Pages e ao uso offline.
+PWA offline-first de lista de compras e orçamento. Sem conta: os dados ficam só no aparelho (IndexedDB, via Dexie).
 
-## Lista prévia vs. carrinho
+## Stack
 
-O app mantém duas listas independentes:
+Vite · React · TypeScript · Dexie · vite-plugin-pwa · Vitest · Playwright · GitHub Actions → GitHub Pages
 
-- **Lista prévia** — planejamento. Pode conter itens sem preço confirmado e não entra no orçamento.
-- **Carrinho** — compras confirmadas. É o que entra no total e na barra de orçamento.
+## Comandos
 
-## Hortifrúti
+- `npm ci` — instala
+- `npm run dev` — desenvolvimento
+- `npm test` — testes de lógica, migração e repositório
+- `npm run lint` · `npm run format`
+- `npm run build` — checagem de tipos + build (use `BASE_PATH=/nome-do-repo/` para Pages)
+- `npm run e2e` — smoke test (antes: `npx playwright install chromium`)
 
-O módulo de hortifrúti usa uma base inicial de produtos (`hortifruti.js`) com nome, variedade e peso médio por unidade. O peso é uma referência inicial e pode ser ajustado na própria estimativa.
+## Estrutura
 
-O preço de mercado é tratado como referência separada dos preços confirmados de compra. Cada referência pode receber:
+- `src/dominio` — lógica pura e testada (centavos, catálogo, hortifrúti, migração)
+- `src/dados` — Dexie + repositório + migração do localStorage
+- `src/telas` — UI
+- `docs/decisoes` — decisões de arquitetura
+- `legado/` — v0 estática, só referência (tag `v0-estavel`)
 
-- preço por kg;
-- fonte informada pelo usuário;
-- data da atualização.
+## Dados e backup
 
-A estimativa segue:
-
-```text
-peso_estimado = quantidade × peso_médio
-valor_estimado = (peso_estimado / 1000) × preço_por_kg
-```
-
-O resultado aparece como **valor estimado**. Um item de hortifrúti pode ser enviado à lista prévia. Para confirmar a compra, o app pede peso real e preço real por kg; somente esses valores entram no orçamento.
-
-As referências de preço ficam no `localStorage` e também são incluídas no backup JSON.
-
-## Catálogo normal
-
-O catálogo de compras continua separado do módulo de hortifrúti. Produtos normais usam preço por unidade e histórico de compras; itens hortifrúti usam peso e preço por kg. Essa separação evita comparar grandezas diferentes.
-
-## Backup
-
-O formato atual é `versaoDados: 4`. Backups anteriores continuam sendo migrados automaticamente. O backup novo inclui as referências de preço do hortifrúti.
+Dinheiro em centavos, IDs ULID, soft delete, `versaoDados: 5` no backup. Backups v1–v4 continuam importáveis. Na primeira abertura, os dados do `localStorage` da v0 são importados; a cópia original fica guardada e pode ser baixada em Início → Backup.
 
 ## Publicação
 
-O projeto continua adequado ao GitHub Pages e ao uso como PWA. O service worker também faz cache de `hortifruti.js`. Depois de alterar arquivos em cache, incremente a constante `CACHE` em `service-worker.js`.
+Settings → Pages → Source: **GitHub Actions**. O workflow define `BASE_PATH` com o nome do repositório.
