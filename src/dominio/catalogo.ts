@@ -81,3 +81,15 @@ export const sugestoes = (cat: Catalogo, presentes: Set<string>) =>
     .filter((e) => e.vezes >= 2 && !presentes.has(e.produtoId))
     .sort((a, b) => b.vezes - a.vezes)
     .slice(0, 12)
+export function agruparPorCategoria<T extends { p: Produto }>(linhas: T[]): [string, T[]][] {
+  const g = new Map<string, T[]>()
+  for (const l of linhas) {
+    const k = l.p.categoria || 'Outros'
+    g.set(k, [...(g.get(k) ?? []), l])
+  }
+  const rank = (x: string) => {
+    const i = ORDEM_CATEGORIAS.indexOf(x)
+    return i < 0 ? 999 : i
+  }
+  return [...g.entries()].sort((a, b) => rank(a[0]) - rank(b[0]))
+}

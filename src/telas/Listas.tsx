@@ -1,9 +1,10 @@
 import { useState, type ChangeEvent, type ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { repo, type NovoItem } from '../dados/repo'
 import {
   estimativaItemLista,
+  agruparPorCategoria,
   limpar,
-  ORDEM_CATEGORIAS,
   precoEstimadoCent,
   textoVariacao,
 } from '../dominio/catalogo'
@@ -11,6 +12,11 @@ import { brl, lerCent, lerNum } from '../dominio/dinheiro'
 import { pesoKg } from '../dominio/hortifruti'
 import { subtotalCompra } from '../dominio/subtotais'
 import type { Ctx } from '../contexto'
+import Despensa from './Despensa'
+import Alvo, { MetaAlvo } from './Alvo'
+import PrefsPreco, { lerPrefs, prefsIniciais, type PrefsSalvas } from './PrefsPreco'
+import { precoUnitCent } from '../dominio/alvo'
+import { linkWhatsApp, textoLista } from '../dominio/compartilhar'
 import type { Compra, HortiLista, ItemLista, Produto } from '../dominio/tipos'
 
 type Linha<T> = { it: T; p: Produto }
@@ -37,42 +43,29 @@ function Agrupada<T>({
   render: (l: Linha<T>) => ReactNode
 }) {
   if (!linhas.length) return <p className="vazio">{vazio}</p>
-  const grupos = new Map<string, Linha<T>[]>()
-  for (const l of linhas) {
-    const cat = l.p.categoria || 'Outros'
-    grupos.set(cat, [...(grupos.get(cat) ?? []), l])
-  }
-  const rank = (x: string) => {
-    const i = ORDEM_CATEGORIAS.indexOf(x)
-    return i < 0 ? 999 : i
-  }
   return (
     <div>
-      {[...grupos.keys()]
-        .sort((a, b) => rank(a) - rank(b))
-        .map((cat) => {
-          const g = grupos.get(cat)!
-          const col = !!c.colapsadas[k]?.[cat]
-          const ls =
-            c.ordenacao === 'alfabetica'
-              ? [...g].sort((a, b) => a.p.nome.localeCompare(b.p.nome, 'pt-BR'))
-              : g
-          return (
-            <div className="categoria-bloco" key={cat}>
-              <div className="categoria-titulo" onClick={() => c.toggleCat(k, cat)}>
-                <span className={`seta${col ? ' seta-fechada' : ''}`}>▾</span>
-                <span>{cat}</span>
-                <span className="categoria-contagem">{g.length}</span>
-              </div>
-              {!col && ls.map((l) => render(l))}
+      {agruparPorCategoria(linhas).map(([cat, g]) => {
+        const col = !!c.colapsadas[k]?.[cat]
+        const ls =
+          c.ordenacao === 'alfabetica' ? [...g].sort((a, b) => a.p.nome.localeCompare(b.p.nome, 'pt-BR')) : g
+        return (
+          <div className="categoria-bloco" key={cat}>
+            <div className="categoria-titulo" onClick={() => c.toggleCat(k, cat)}>
+              <span className={`seta${col ? ' seta-fechada' : ''}`}>▾</span>
+              <span>{cat}</span>
+              <span className="categoria-contagem">{g.length}</span>
             </div>
-          )
-        })}
+            {!col && ls.map((l) => render(l))}
+          </div>
+        )
+      })}
     </div>
   )
 }
 
 function EdNormal({
+  c,
   k,
   p,
   qtd,
@@ -81,12 +74,13 @@ function EdNormal({
   salvar,
   cancelar,
 }: {
+  c: Ctx
   k: 'previa' | 'carrinho'
   p: Produto
   qtd: number
   precoCent: number | null
   exigePreco: boolean
-  salvar: (d: NovoItem) => Promise<void>
+  salvar: (d: NovoItem, pr: PrefsSalvas) => Promise<void>
   cancelar: () => void
 }) {
   const [f, setF] = useState({
@@ -96,6 +90,7 @@ function EdNormal({
     qtd: String(qtd),
     preco: precoCent != null ? String(precoCent / 100) : '',
   })
+  const [pf, setPf] = useState(prefsIniciais(p))
   const i = campo(f, setF)
   async function ok() {
     const nome = limpar(f.nome)
@@ -105,13 +100,10 @@ function EdNormal({
     const pr = lerCent(f.preco)
     if (f.preco.trim() ? !(pr && pr > 0) : exigePreco)
       return void alert('Informe um preço válido maior que zero.')
-    await salvar({
-      nome,
-      marca: limpar(f.marca) || null,
-      categoria: limpar(f.categoria) || null,
-      qtd: q,
-      precoCent: pr,
-    })
+    await salvar(
+      { nome, marca: limpar(f.marca) || null, categoria: limpar(f.categoria) || null, qtd: q, precoCent: pr },
+      lerPrefs(pf),
+    )
   }
   return (
     <div className={`item item-${k} item-editando`}>
@@ -120,6 +112,7 @@ function EdNormal({
       <input {...i('categoria')} placeholder="Categoria (opcional)" />
       <input {...Q} {...i('qtd')} placeholder="Quantidade" />
       <input {...D} {...i('preco')} placeholder={exigePreco ? 'Preço' : 'Preço estimado (opcional)'} />
+      <PrefsPreco c={c} p={p} v={pf} set={setPf} />
       <div className="item-acoes">
         <button className="botao-salvar" onClick={ok}>
           💾 Salvar
@@ -155,18 +148,18 @@ function EdHortiPrevia({
     pesoReal: '',
     precoReal: '',
   })
+  const [pf, setPf] = useState(prefsIniciais(p))
   const i = campo(f, setF)
   async function salvarEst() {
     const q = lerNum(f.qtd)
     const pm = lerNum(f.peso)
     if (!(q > 0)) return void alert('A quantidade deve ser maior que zero.')
     if (!(pm > 0)) return void alert('Informe um peso médio válido.')
-    await repo.editarHortiLista(it.id, {
-      qtd: q,
-      pesoMedioG: pm,
-      precoKgRefCent: lerCent(f.ref) || null,
-      fonte: limpar(f.fonte) || null,
-    })
+    await repo.editarHortiLista(
+      it.id,
+      { qtd: q, pesoMedioG: pm, precoKgRefCent: lerCent(f.ref) || null, fonte: limpar(f.fonte) || null },
+      lerPrefs(pf),
+    )
     fechar()
   }
   async function confirmar() {
@@ -185,6 +178,7 @@ function EdHortiPrevia({
       <input {...Q} {...i('peso')} placeholder="Peso médio (g)" />
       <input {...D} {...i('ref')} placeholder="Preço de referência/kg" />
       <input {...i('fonte')} placeholder="Fonte do preço (opcional)" />
+      <PrefsPreco c={c} p={p} v={pf} set={setPf} />
       <div className="hortifruti-confirmacao">
         <strong>Confirmar compra no carrinho</strong>
         <input {...Q} {...i('pesoReal')} placeholder="Peso real da compra (g)" autoFocus={foco} />
@@ -206,12 +200,13 @@ function EdHortiPrevia({
   )
 }
 
-function EdHortiCarrinho({ it, p, fechar }: { it: Compra; p: Produto; fechar: () => void }) {
+function EdHortiCarrinho({ c, it, p, fechar }: { c: Ctx; it: Compra; p: Produto; fechar: () => void }) {
   const [f, setF] = useState({
     qtd: String(it.qtd),
     peso: it.pesoG != null ? String(it.pesoG) : '',
     preco: it.precoKgCent != null ? String(it.precoKgCent / 100) : '',
   })
+  const [pf, setPf] = useState(prefsIniciais(p))
   const i = campo(f, setF)
   async function ok() {
     const q = lerNum(f.qtd)
@@ -220,7 +215,7 @@ function EdHortiCarrinho({ it, p, fechar }: { it: Compra; p: Produto; fechar: ()
     if (!(q > 0)) return void alert('A quantidade deve ser maior que zero.')
     if (!(g > 0)) return void alert('Informe o peso real da compra em gramas.')
     if (!kg || kg <= 0) return void alert('Informe o preço real por kg.')
-    await repo.editarCompraHorti(it.id, { qtd: q, pesoG: g, precoKgCent: kg })
+    await repo.editarCompraHorti(it.id, { qtd: q, pesoG: g, precoKgCent: kg }, lerPrefs(pf))
     fechar()
   }
   return (
@@ -230,6 +225,7 @@ function EdHortiCarrinho({ it, p, fechar }: { it: Compra; p: Produto; fechar: ()
       <input {...Q} {...i('qtd')} placeholder="Quantidade (unidades)" />
       <input {...Q} {...i('peso')} placeholder="Peso real (g)" />
       <input {...D} {...i('preco')} placeholder="Preço real/kg" />
+      <PrefsPreco c={c} p={p} v={pf} set={setPf} />
       <div className="item-acoes">
         <button className="botao-salvar" onClick={ok}>
           💾 Salvar
@@ -251,13 +247,14 @@ function ItemPrevia({ c, it, p }: { c: Ctx; it: ItemLista; p: Produto }) {
   if (ed)
     return (
       <EdNormal
+        c={c}
         k="previa"
         p={p}
         qtd={it.qtd}
         precoCent={it.precoEstimadoCent}
         exigePreco={false}
         cancelar={fechar}
-        salvar={(d) => repo.editarItemLista(it.id, d).then(fechar)}
+        salvar={(d, pr) => repo.editarItemLista(it.id, d, pr).then(fechar)}
       />
     )
   async function paraCarrinho() {
@@ -292,6 +289,7 @@ function ItemPrevia({ c, it, p }: { c: Ctx; it: ItemLista; p: Produto }) {
           {h.precoKgRefCent ? `${brl(h.precoKgRefCent)}/kg` : 'não cadastrada'}
         </div>
       )}
+      <MetaAlvo c={c} p={p} />
       <div className="item-acoes">
         <button className="botao-editar" onClick={() => setEd('editar')}>
           ✏️ Editar
@@ -299,7 +297,13 @@ function ItemPrevia({ c, it, p }: { c: Ctx; it: ItemLista; p: Produto }) {
         <button className="botao-carrinho" onClick={paraCarrinho}>
           {h ? '🛒 Confirmar compra' : '🛒 Ao carrinho'}
         </button>
-        <button className="botao-remover" onClick={() => repo.removerItemLista(it.id)}>
+        <button
+          className="botao-remover"
+          onClick={async () => {
+            await repo.removerItemLista(it.id)
+            c.avisar(`${p.nome} removido`, () => repo.restaurarItemLista(it.id))
+          }}
+        >
           🗑️
         </button>
       </div>
@@ -307,21 +311,22 @@ function ItemPrevia({ c, it, p }: { c: Ctx; it: ItemLista; p: Produto }) {
   )
 }
 
-function ItemCarrinho({ it, p }: { it: Compra; p: Produto }) {
+function ItemCarrinho({ c, it, p }: { c: Ctx; it: Compra; p: Produto }) {
   const [ed, setEd] = useState(false)
   const horti = p.unidadeBase === 'kg'
   const fechar = () => setEd(false)
-  if (ed && horti) return <EdHortiCarrinho it={it} p={p} fechar={fechar} />
+  if (ed && horti) return <EdHortiCarrinho c={c} it={it} p={p} fechar={fechar} />
   if (ed)
     return (
       <EdNormal
+        c={c}
         k="carrinho"
         p={p}
         qtd={it.qtd}
         precoCent={it.precoCent}
         exigePreco
         cancelar={fechar}
-        salvar={(d) => repo.editarCompra(it.id, { ...d, precoCent: d.precoCent ?? 0 }).then(fechar)}
+        salvar={(d, pr) => repo.editarCompra(it.id, { ...d, precoCent: d.precoCent ?? 0 }, pr).then(fechar)}
       />
     )
   const tag = horti ? p.variedade || 'Hortifrúti' : p.marca
@@ -340,6 +345,7 @@ function ItemCarrinho({ it, p }: { it: Compra; p: Produto }) {
       </div>
       {horti && <div className="horti-meta">Preço confirmado: {brl(it.precoKgCent ?? 0)}/kg</div>}
       {!horti && it.variacaoCent != null && <div className="variacao">{textoVariacao(it.variacaoCent)}</div>}
+      <Alvo c={c} p={p} cent={precoUnitCent(it)} />
       <div className="item-acoes">
         <button className="botao-editar" onClick={() => setEd(true)}>
           ✏️ Editar
@@ -347,7 +353,13 @@ function ItemCarrinho({ it, p }: { it: Compra; p: Produto }) {
         <button className="botao-secundario" onClick={() => repo.compraParaLista(it.id)}>
           ↩️ Lista prévia
         </button>
-        <button className="botao-remover" onClick={() => repo.removerCompra(it.id)}>
+        <button
+          className="botao-remover"
+          onClick={async () => {
+            await repo.removerCompra(it.id)
+            c.avisar(`${p.nome} removido`, () => repo.restaurarCompra(it.id))
+          }}
+        >
           🗑️
         </button>
       </div>
@@ -356,6 +368,30 @@ function ItemCarrinho({ it, p }: { it: Compra; p: Produto }) {
 }
 
 export function ListaPrevia({ c }: { c: Ctx }) {
+  const nav = useNavigate()
+  const montarTexto = () => textoLista(c.dados.itensLista, c.prod, new Date())
+  // Web Share quando existe (celular); senão abre o WhatsApp pelo link wa.me.
+  async function compartilhar() {
+    const t = montarTexto()
+    if (!t) return
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Lista de compras', text: t })
+        return
+      } catch (e) {
+        if ((e as Error).name === 'AbortError') return
+      }
+    }
+    window.open(linkWhatsApp(t), '_blank', 'noopener')
+  }
+  async function copiar() {
+    try {
+      await navigator.clipboard.writeText(montarTexto())
+      c.avisar('Lista copiada')
+    } catch {
+      c.avisar('Não foi possível copiar')
+    }
+  }
   const linhas = c.dados.itensLista.flatMap((it) => {
     const p = c.prod.get(it.produtoId)
     return p ? [{ it, p }] : []
@@ -370,8 +406,22 @@ export function ListaPrevia({ c }: { c: Ctx }) {
         </span>
       </div>
       <div className="total-secundario">
-        Estimativa total: {brl(total)} <span className="ajuda-inline">(não conta no orçamento)</span>
+        Estimativa total: {brl(total)} <span className="ajuda-inline">(não conta no orçamento)</span>{' '}
       </div>
+      <button type="button" className="botao-carrinho" onClick={() => nav('/mercado')}>
+        🛍️ Ir ao mercado
+      </button>
+      {linhas.length > 0 && (
+        <div className="form-botoes">
+          <button type="button" className="botao-secundario" onClick={compartilhar}>
+            📤 Compartilhar lista
+          </button>
+          <button type="button" className="botao-secundario" onClick={copiar}>
+            📋 Copiar texto
+          </button>
+        </div>
+      )}
+      <Despensa c={c} compacto />
       <Agrupada
         c={c}
         k="previa"
@@ -403,7 +453,7 @@ export function Carrinho({ c }: { c: Ctx }) {
         k="carrinho"
         linhas={linhas}
         vazio="Carrinho vazio. Adicione itens direto ou traga da lista prévia."
-        render={(l) => <ItemCarrinho key={l.it.id} it={l.it} p={l.p} />}
+        render={(l) => <ItemCarrinho key={l.it.id} c={c} it={l.it} p={l.p} />}
       />
     </section>
   )

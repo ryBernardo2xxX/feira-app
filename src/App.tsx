@@ -3,13 +3,17 @@ import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { repo } from './dados/repo'
 import { reconstruirCatalogo } from './dominio/catalogo'
+import { diaLocal } from './dominio/despensa'
 import type { Dados } from './dominio/tipos'
 import type { Ctx } from './contexto'
+import Toast, { type EstadoToast } from './Toast'
 import Inicio from './telas/Inicio'
 import Adicionar from './telas/Adicionar'
 import { ListaPrevia, Carrinho } from './telas/Listas'
 import Hortifruti from './telas/Hortifruti'
 import Historico from './telas/Historico'
+import Mercado from './telas/Mercado'
+import Fechamento from './telas/Fechamento'
 
 const ABAS: [string, string][] = [
   ['/', 'Início'],
@@ -36,7 +40,7 @@ export default function App() {
 function Painel({ dados }: { dados: Dados }) {
   const nav = useNavigate()
   const { pathname } = useLocation()
-  const [toast, setToast] = useState({ msg: '', on: false })
+  const [toast, setToast] = useState<EstadoToast>({ msg: '', on: false })
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [ordenacao, setOrd] = useState<Ctx['ordenacao']>(
     localStorage.getItem('ordenacao') === 'alfabetica' ? 'alfabetica' : 'padrao',
@@ -47,6 +51,17 @@ function Painel({ dados }: { dados: Dados }) {
   const feira = dados.feiras.find((f) => !f.fechadaEm)
   if (!feira) return null
 
+  const avisar: Ctx['avisar'] = (msg, desfazer) => {
+    clearTimeout(timer.current)
+    setToast({ msg, desfazer, on: true })
+    timer.current = setTimeout(() => setToast((x) => ({ ...x, on: false })), desfazer ? 7000 : 1800)
+  }
+  async function desfazer() {
+    clearTimeout(timer.current)
+    const f = toast.desfazer
+    setToast((x) => ({ ...x, on: false }))
+    if ((await f?.()) !== false) avisar('Desfeito')
+  }
   const c: Ctx = {
     dados,
     prod,
@@ -54,11 +69,8 @@ function Painel({ dados }: { dados: Dados }) {
     catalogo,
     ordenacao,
     colapsadas,
-    avisar: (msg) => {
-      clearTimeout(timer.current)
-      setToast({ msg, on: true })
-      timer.current = setTimeout(() => setToast((x) => ({ ...x, on: false })), 1800)
-    },
+    avisar,
+    hoje: diaLocal(new Date().toISOString()),
     setOrdenacao: (v) => {
       localStorage.setItem('ordenacao', v)
       setOrd(v)
@@ -73,25 +85,27 @@ function Painel({ dados }: { dados: Dados }) {
 
   return (
     <>
-      <nav className="especifications" aria-label="Menu principal">
-        <ul>
-          {ABAS.map(([p, r]) => (
-            <li key={p}>
-              <button
-                type="button"
-                className={pathname === p ? 'active' : undefined}
-                aria-current={pathname === p ? 'page' : undefined}
-                onClick={() => {
-                  nav(p)
-                  window.scrollTo({ top: 0, behavior: 'smooth' })
-                }}
-              >
-                {r}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </nav>
+      {pathname !== '/mercado' && (
+        <nav className="especifications" aria-label="Menu principal">
+          <ul>
+            {ABAS.map(([p, r]) => (
+              <li key={p}>
+                <button
+                  type="button"
+                  className={pathname === p ? 'active' : undefined}
+                  aria-current={pathname === p ? 'page' : undefined}
+                  onClick={() => {
+                    nav(p)
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }}
+                >
+                  {r}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
       <div className="container">
         <Routes>
           <Route path="/adicionar" element={<Adicionar c={c} />} />
@@ -99,6 +113,8 @@ function Painel({ dados }: { dados: Dados }) {
           <Route path="/hortifruti" element={<Hortifruti c={c} />} />
           <Route path="/carrinho" element={<Carrinho c={c} />} />
           <Route path="/historico" element={<Historico c={c} />} />
+          <Route path="/mercado" element={<Mercado c={c} />} />
+          <Route path="/feira/:id" element={<Fechamento c={c} />} />
           <Route path="*" element={<Inicio c={c} />} />
         </Routes>
       </div>
@@ -112,9 +128,7 @@ function Painel({ dados }: { dados: Dados }) {
           <option key={m} value={m} />
         ))}
       </datalist>
-      <div id="toast" role="status" className={toast.on ? 'show' : undefined}>
-        {toast.msg}
-      </div>
+      <Toast t={toast} onDesfazer={desfazer} />
     </>
   )
 }

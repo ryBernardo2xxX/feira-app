@@ -1,0 +1,129 @@
+.tela {
+  padding-bottom: 24px;
+}
+.topo {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--bg);
+  padding: 8px 0 6px;
+  margin-bottom: 4px;
+}
+.sair {
+  width: auto;
+  min-height: 40px;
+  margin: 0 0 8px;
+  padding: 6px 14px;
+  font-size: 15px;
+  background: var(--b-esc);
+}
+.total {
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.de {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--mut);
+}
+.sub {
+  font-size: 15px;
+  color: var(--mut);
+  margin: 4px 0;
+}
+.cat {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--pri);
+  margin: 18px 0 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.card {
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--prev);
+  border-radius: var(--r);
+  padding: 14px;
+  margin: 10px 0;
+  box-shadow: var(--sh);
+}
+.nome {
+  font-size: 22px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.qtd {
+  font-size: 18px;
+  color: var(--mut);
+  margin-left: 8px;
+  white-space: nowrap;
+}
+.meta {
+  font-size: 15px;
+  color: var(--mut);
+  margin: 6px 0 10px;
+}
+.acoes {
+  display: flex;
+  gap: 8px;
+}
+.grande {
+  flex: 1;
+  min-height: 60px;
+  margin: 0;
+  font-size: 20px;
+}
+.sec {
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 60px;
+  margin: 0;
+  padding: 0 18px;
+  font-size: 16px;
+  background: var(--b-esc);
+}
+.campo {
+  min-height: 56px;
+  margin: 0 0 8px;
+  font-size: 22px;
+}
+.qtdCampo {
+  flex: 0 0 90px;
+  width: 90px;
+  margin: 0;
+}
+.erro {
+  color: var(--perig);
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+.feito {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 17px;
+}
+.feito > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.feito .sec {
+  min-height: 44px;
+  padding: 0 14px;
+}
+.linha2 {
+  display: flex;
+  gap: 8px;
+}
+.linha2 input {
+  flex: 1;
+  min-width: 0;
+}
+.linha2 input:first-child {
+  flex: 2;
+}

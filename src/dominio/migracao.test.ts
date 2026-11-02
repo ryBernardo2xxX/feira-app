@@ -138,3 +138,81 @@ describe('backups antigos e v5', () => {
     expect(parseDataBR('x')).toBeNull()
   })
 })
+
+describe('schema v6 (F2)', () => {
+  it('migração da v0 grava origem desconhecida e os campos novos', () => {
+    const d = migrarBackup(v4, ctx())
+    expect(d.compras.every((c) => c.foraDaLista === null)).toBe(true)
+    expect(d.produtos.every((p) => p.precoAlvoCent === null && p.alternativas.length === 0)).toBe(true)
+    expect(d.eventosDespensa).toEqual([])
+  })
+  it('backup v5 (F1) sobe para v6 marcando só as compras vindas da v0', () => {
+    const b = {
+      createdAt: '2026-10-01T10:00:00.000Z',
+      updatedAt: '2026-10-01T10:00:00.000Z',
+      deletedAt: null,
+      deviceId: 'd',
+    }
+    const compra = (id: string, feiraId: string, createdAt: string, foraDaLista: boolean) => ({
+      ...b,
+      id,
+      createdAt,
+      feiraId,
+      produtoId: 'p1',
+      qtd: 1,
+      precoCent: 500,
+      pesoG: null,
+      precoKgCent: null,
+      variacaoCent: null,
+      foraDaLista,
+    })
+    const v5 = {
+      versaoDados: 5,
+      produtos: [
+        {
+          ...b,
+          id: 'p1',
+          nome: 'Arroz',
+          marca: null,
+          variedade: null,
+          categoria: null,
+          unidadeBase: 'un',
+          chave: 'arroz::',
+          hortifrutiId: null,
+        },
+      ],
+      itensLista: [],
+      hortiRefs: [],
+      feiras: [
+        {
+          ...b,
+          id: 'f1',
+          data: b.createdAt,
+          mercado: null,
+          orcamentoCent: 0,
+          fechadaEm: '2026-10-02T10:00:00.000Z',
+        },
+        {
+          ...b,
+          id: 'f2',
+          createdAt: '2026-10-03T10:00:00.000Z',
+          data: '2026-10-03T10:00:00.000Z',
+          mercado: null,
+          orcamentoCent: 0,
+          fechadaEm: null,
+        },
+      ],
+      compras: [
+        compra('c1', 'f1', '2026-10-02T10:00:00.000Z', false),
+        compra('c2', 'f1', '2026-10-01T12:00:00.000Z', true),
+        compra('c3', 'f2', '2026-10-03T10:00:00.000Z', false),
+        compra('c4', 'f2', '2026-10-03T11:00:00.000Z', false),
+      ],
+    }
+    const d = lerBackup(v5, ctx())
+    expect(d.compras.map((c) => c.foraDaLista)).toEqual([null, true, null, false])
+    expect(d.produtos[0]).toMatchObject({ precoAlvoCent: null, alternativas: [] })
+    expect(d.eventosDespensa).toEqual([])
+    expect(lerBackup(JSON.parse(JSON.stringify({ versaoDados: VERSAO_DADOS, ...d })), ctx())).toEqual(d)
+  })
+})
