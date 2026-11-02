@@ -26,5 +26,5 @@ export default defineConfig({
       workbox: { globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'], navigateFallback: 'index.html' },
     }),
   ],
-  test: { environment: 'jsdom', setupFiles: ['src/testes/setup.ts'], include: ['src/**/*.test.ts'] },
+  test: { environment: 'jsdom', setupFiles: ['src/testes/setup.ts'], include: ['src/**/*.test.{ts,tsx}'] },
 })

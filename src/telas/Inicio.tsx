@@ -1,10 +1,13 @@
 import { useState, type ChangeEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { useNavigate } from 'react-router-dom'
 import { repo } from '../dados/repo'
 import { sugestoes } from '../dominio/catalogo'
 import { brl, lerCent } from '../dominio/dinheiro'
 import { totalCompras } from '../dominio/subtotais'
 import type { Ctx } from '../contexto'
+import { finalizar } from './acoes'
+import Despensa from './Despensa'
 
 function baixar(nome: string, texto: string) {
   const a = document.createElement('a')
@@ -17,6 +20,7 @@ function baixar(nome: string, texto: string) {
 
 export default function Inicio({ c }: { c: Ctx }) {
   const { feira } = c
+  const nav = useNavigate()
   const [orc, setOrc] = useState(feira.orcamentoCent ? String(feira.orcamentoCent / 100) : '')
   const pre = useLiveQuery(() => repo.backupPreMigracao())
   const carrinho = c.dados.compras.filter((x) => x.feiraId === feira.id)
@@ -32,17 +36,6 @@ export default function Inicio({ c }: { c: Ctx }) {
   async function salvarOrc() {
     await repo.definirOrcamento(orc.trim() === '' ? 0 : (lerCent(orc) ?? 0))
     c.avisar('Orçamento salvo')
-  }
-  async function finalizar() {
-    if (!carrinho.length) return void alert('Adicione itens ao carrinho antes de finalizar a feira.')
-    if (
-      !confirm(
-        'Finalizar esta feira? Os itens do carrinho vão para o histórico e o carrinho fica vazio. A lista prévia não é afetada.',
-      )
-    )
-      return
-    await repo.finalizarFeira()
-    c.avisar('Feira finalizada')
   }
   async function importar(e: ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
@@ -66,6 +59,9 @@ export default function Inicio({ c }: { c: Ctx }) {
     <section id="inicio" className="menu-secao">
       <h1>🛒 Feira Inteligente</h1>
       <p id="timestamp">Última atualização: {ult ? new Date(ult).toLocaleString('pt-BR') : '—'}</p>
+      <button type="button" className="botao-carrinho" onClick={() => nav('/mercado')}>
+        🛍️ Modo Mercado
+      </button>
 
       <section className="orcamento-section">
         <h2>💰 Orçamento</h2>
@@ -92,11 +88,12 @@ export default function Inicio({ c }: { c: Ctx }) {
           Total no carrinho: <span id="total">{brl(total)}</span>
         </div>
         <p className="ajuda">Só o carrinho conta pro orçamento. A lista prévia é só planejamento.</p>
-        <button type="button" className="botao-secundario" onClick={finalizar}>
+        <button type="button" className="botao-secundario" onClick={() => finalizar(c, nav, '/')}>
           ✅ Finalizar feira
         </button>
       </section>
 
+      <Despensa c={c} />
       <section className="ordenar_listas-section">
         <div className="secao-cabecalho">
           <h2>🔀 Ordenar listas</h2>
@@ -145,7 +142,7 @@ export default function Inicio({ c }: { c: Ctx }) {
       <section className="backup-section">
         <h2>💾 Backup</h2>
         <p className="ajuda">
-          Exporta lista prévia, carrinho, catálogo e histórico juntos. Backups antigos (v1–v4) continuam
+          Exporta lista prévia, carrinho, catálogo e histórico juntos. Backups de versões anteriores continuam
           funcionando.
         </p>
         <button

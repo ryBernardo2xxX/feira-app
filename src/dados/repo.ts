@@ -1,3 +1,4 @@
+import type { Table } from 'dexie'
 import { monotonicFactory } from 'ulid'
 import { db, gravarDados } from './db'
 import { migrarLocalStorage } from './migracaoLS'
@@ -11,7 +12,16 @@ import {
   variacaoCent,
 } from '../dominio/catalogo'
 import { lerBackup, type CtxMig } from '../dominio/migracao'
-import { VERSAO_DADOS, type Base, type Dados, type Produto } from '../dominio/tipos'
+import {
+  VERSAO_DADOS,
+  type Base,
+  type Compra,
+  type Dados,
+  type EventoDespensa,
+  type Feira,
+  type ItemLista,
+  type Produto,
+} from '../dominio/tipos'
 
 const ulid = monotonicFactory()
 let dev = ''
@@ -79,20 +89,23 @@ async function obterProduto(i: EntradaProduto): Promise<Produto> {
     categoria: cat ?? (horti ? 'Hortifruti' : mesmoNome.length === 1 ? mesmoNome[0].categoria : null),
     unidadeBase: horti ? 'kg' : 'un',
     hortifrutiId: horti ? (i.hortifrutiId ?? null) : null,
+    precoAlvoCent: null,
+    alternativas: [],
   }
   await db.produtos.add(p)
   return p
 }
 
 const todas = async (): Promise<Dados> => {
-  const [produtos, itensLista, feiras, compras, hortiRefs] = await Promise.all([
+  const [produtos, itensLista, feiras, compras, hortiRefs, eventosDespensa] = await Promise.all([
     db.produtos.toArray(),
     db.itensLista.toArray(),
     db.feiras.toArray(),
     db.compras.toArray(),
     db.hortiRefs.toArray(),
+    db.eventosDespensa.toArray(),
   ])
-  return { produtos, itensLista, feiras, compras, hortiRefs }
+  return { produtos, itensLista, feiras, compras, hortiRefs, eventosDespensa }
 }
 async function carregar(): Promise<Dados> {
   const d = await todas()
@@ -102,6 +115,7 @@ async function carregar(): Promise<Dados> {
     feiras: vivos(d.feiras),
     compras: vivos(d.compras),
     hortiRefs: vivos(d.hortiRefs),
+    eventosDespensa: vivos(d.eventosDespensa),
   }
 }
 const exportar = async () => ({ versaoDados: VERSAO_DADOS, exportadoEm: agora(), ...(await todas()) })
@@ -153,13 +167,29 @@ const finalizarFeira = () =>
     const f = await aberta()
     const t = agora()
     await db.feiras.put(toque(f, { fechadaEm: t }))
-    await db.feiras.add({
-      ...novo(),
-      data: t,
-      mercado: null,
-      orcamentoCent: f.orcamentoCent,
-      fechadaEm: null,
-    })
+    const n: Feira = { ...novo(), data: t, mercado: null, orcamentoCent: f.orcamentoCent, fechadaEm: null }
+    await db.feiras.add(n)
+    return { fechadaId: f.id, novaId: n.id }
+  })
+// Desfaz a finalização, mas só enquanto a nova feira ainda está vazia (senão perderia o que foi registrado nela).
+const reabrirFeira = (r: { fechadaId: string; novaId: string }) =>
+  tx(async () => {
+    const n = await db.feiras.get(r.novaId)
+    const f = await db.feiras.get(r.fechadaId)
+    if (
+      !n ||
+      !f ||
+      n.fechadaEm ||
+      (await db.compras
+        .where('feiraId')
+        .equals(n.id)
+        .filter((c) => !c.deletedAt)
+        .count())
+    )
+      return false
+    await db.feiras.put(toque(n, { deletedAt: agora() }))
+    await db.feiras.put(toque(f, { fechadaEm: null, orcamentoCent: n.orcamentoCent }))
+    return true
   })
 
 const adicionarItemLista = (d: NovoItem) =>
@@ -173,9 +203,32 @@ const adicionarItemLista = (d: NovoItem) =>
       horti: null,
     })
   })
+// Item de lista para um produto já conhecido; no hortifrúti traz peso médio e preço de referência.
+const novoItemLista = async (
+  p: Produto,
+  qtd: number,
+  precoEstimadoCent: number | null,
+  kgFallback: number | null = null,
+): Promise<ItemLista> => {
+  if (p.unidadeBase !== 'kg') return { ...novo(), produtoId: p.id, qtd, precoEstimadoCent, horti: null }
+  const ref = p.hortifrutiId ? await db.hortiRefs.get(p.hortifrutiId) : undefined
+  const b = HORTIFRUTI_BASE.find((x) => x.id === p.hortifrutiId)
+  return {
+    ...novo(),
+    produtoId: p.id,
+    qtd,
+    precoEstimadoCent: null,
+    horti: {
+      pesoMedioG: b?.pesoMedioG ?? null,
+      precoKgRefCent: ref?.precoKgCent ?? kgFallback,
+      fonte: ref?.fonte ?? null,
+    },
+  }
+}
 const adicionarSugestao = (produtoId: string) =>
   tx(async () => {
-    await db.itensLista.add({ ...novo(), produtoId, qtd: 1, precoEstimadoCent: null, horti: null })
+    const p = await db.produtos.get(produtoId)
+    if (p) await db.itensLista.add(await novoItemLista(p, 1, null))
   })
 const adicionarHortiLista = (d: NovoHorti) =>
   tx(async () => {
@@ -191,8 +244,7 @@ const adicionarHortiLista = (d: NovoHorti) =>
 const adicionarCompra = (d: ComPreco) =>
   tx(async () => {
     const p = await obterProduto(d)
-    const v = variacaoCent(await catalogoAtual(), p.id, d.precoCent)
-    await db.compras.add({
+    const c: Compra = {
       ...novo(),
       feiraId: (await aberta()).id,
       produtoId: p.id,
@@ -200,33 +252,50 @@ const adicionarCompra = (d: ComPreco) =>
       precoCent: d.precoCent,
       pesoG: null,
       precoKgCent: null,
-      variacaoCent: v,
+      variacaoCent: variacaoCent(await catalogoAtual(), p.id, d.precoCent),
       foraDaLista: true,
-    })
+    }
+    await db.compras.add(c)
+    return c.id
   })
 
-const editarItemLista = (id: string, d: NovoItem) =>
+type Prefs = { precoAlvoCent: number | null; alternativas: string[] }
+const aplicarPrefs = async (produtoId: string, pr?: Prefs) => {
+  if (!pr) return
+  const p = await db.produtos.get(produtoId)
+  if (p)
+    await db.produtos.put(
+      toque(p, {
+        precoAlvoCent: pr.precoAlvoCent,
+        alternativas: [...new Set(pr.alternativas)].filter((x) => x !== produtoId),
+      }),
+    )
+}
+const editarItemLista = (id: string, d: NovoItem, pr?: Prefs) =>
   tx(async () => {
     const it = await db.itensLista.get(id)
     if (!it) return
     const p = await obterProduto(d)
     await db.itensLista.put(toque(it, { produtoId: p.id, qtd: d.qtd, precoEstimadoCent: d.precoCent }))
+    await aplicarPrefs(p.id, pr)
   })
 const editarHortiLista = (
   id: string,
   d: { qtd: number; pesoMedioG: number; precoKgRefCent: number | null; fonte: string | null },
+  pr?: Prefs,
 ) =>
   tx(async () => {
     const it = await db.itensLista.get(id)
-    if (it?.horti)
-      await db.itensLista.put(
-        toque(it, {
-          qtd: d.qtd,
-          horti: { pesoMedioG: d.pesoMedioG, precoKgRefCent: d.precoKgRefCent, fonte: d.fonte },
-        }),
-      )
+    if (!it?.horti) return
+    await db.itensLista.put(
+      toque(it, {
+        qtd: d.qtd,
+        horti: { pesoMedioG: d.pesoMedioG, precoKgRefCent: d.precoKgRefCent, fonte: d.fonte },
+      }),
+    )
+    await aplicarPrefs(it.produtoId, pr)
   })
-const editarCompra = (id: string, d: ComPreco) =>
+const editarCompra = (id: string, d: ComPreco, pr?: Prefs) =>
   tx(async () => {
     const c = await db.compras.get(id)
     if (!c) return
@@ -239,31 +308,32 @@ const editarCompra = (id: string, d: ComPreco) =>
         variacaoCent: variacaoCent(await catalogoAtual(id), p.id, d.precoCent),
       }),
     )
+    await aplicarPrefs(p.id, pr)
   })
-const editarCompraHorti = (id: string, d: { qtd: number; pesoG: number; precoKgCent: number }) =>
+const editarCompraHorti = (id: string, d: { qtd: number; pesoG: number; precoKgCent: number }, pr?: Prefs) =>
   tx(async () => {
     const c = await db.compras.get(id)
-    if (c) await db.compras.put(toque(c, d))
+    if (!c) return
+    await db.compras.put(toque(c, d))
+    await aplicarPrefs(c.produtoId, pr)
   })
 
-const removerItemLista = (id: string) =>
-  tx(async () => {
-    const it = await db.itensLista.get(id)
-    if (it) await db.itensLista.put(toque(it, { deletedAt: agora() }))
-  })
-const removerCompra = (id: string) =>
-  tx(async () => {
-    const c = await db.compras.get(id)
-    if (c) await db.compras.put(toque(c, { deletedAt: agora() }))
-  })
+async function soft<T extends Base>(t: Table<T, string>, id: string, deletedAt: string | null) {
+  const o = await t.get(id)
+  if (o) await t.put(toque(o, { deletedAt } as Partial<T>))
+}
+const removerItemLista = (id: string) => tx(() => soft(db.itensLista, id, agora()))
+const restaurarItemLista = (id: string) => tx(() => soft(db.itensLista, id, null))
+const removerCompra = (id: string) => tx(() => soft(db.compras, id, agora()))
+const restaurarCompra = (id: string) => tx(() => soft(db.compras, id, null))
 
 // Normal: informe precoCent. Hortifrúti: informe pesoG e precoKgCent reais da compra.
 const listaParaCompra = (id: string, d: { precoCent?: number; pesoG?: number; precoKgCent?: number }) =>
   tx(async () => {
     const it = await db.itensLista.get(id)
-    if (!it) return
+    if (!it) return null
     const horti = d.pesoG != null
-    await db.compras.add({
+    const c: Compra = {
       ...novo(),
       feiraId: (await aberta()).id,
       produtoId: it.produtoId,
@@ -273,30 +343,24 @@ const listaParaCompra = (id: string, d: { precoCent?: number; pesoG?: number; pr
       precoKgCent: horti ? (d.precoKgCent ?? null) : null,
       variacaoCent: horti ? null : variacaoCent(await catalogoAtual(), it.produtoId, d.precoCent ?? 0),
       foraDaLista: false,
-    })
+    }
+    await db.compras.add(c)
     await db.itensLista.put(toque(it, { deletedAt: agora() }))
+    return { compraId: c.id, itemId: id }
+  })
+type Movida = { compraId: string; itemId: string } | null
+const desfazerListaParaCompra = (r: Movida) =>
+  tx(async () => {
+    if (!r) return
+    await soft(db.compras, r.compraId, agora())
+    await soft(db.itensLista, r.itemId, null)
   })
 const compraParaLista = (id: string) =>
   tx(async () => {
     const c = await db.compras.get(id)
     if (!c) return
     const p = (await db.produtos.get(c.produtoId))!
-    const horti = p.unidadeBase === 'kg'
-    const ref = p.hortifrutiId ? await db.hortiRefs.get(p.hortifrutiId) : undefined
-    const bs = HORTIFRUTI_BASE.find((x) => x.id === p.hortifrutiId)
-    await db.itensLista.add({
-      ...novo(),
-      produtoId: p.id,
-      qtd: c.qtd,
-      precoEstimadoCent: horti ? null : c.precoCent,
-      horti: horti
-        ? {
-            pesoMedioG: bs?.pesoMedioG ?? null,
-            precoKgRefCent: ref?.precoKgCent ?? c.precoKgCent,
-            fonte: ref?.fonte ?? null,
-          }
-        : null,
-    })
+    await db.itensLista.add(await novoItemLista(p, c.qtd, c.precoCent, c.precoKgCent))
     await db.compras.put(toque(c, { deletedAt: agora() }))
   })
 
@@ -308,6 +372,29 @@ const salvarHortiRef = (id: string, precoKgCent: number, fonte: string | null) =
     )
   })
 
+type AvisoRef = { produtoId: string; cicloDia: number; diasDesde: number }
+const evento = (a: AvisoRef, tipo: EventoDespensa['tipo']): EventoDespensa => ({
+  ...novo(),
+  produtoId: a.produtoId,
+  tipo,
+  cicloDia: a.cicloDia,
+  diasDesde: a.diasDesde,
+})
+const aceitarAviso = (a: AvisoRef) =>
+  tx(async () => {
+    const p = await db.produtos.get(a.produtoId)
+    if (!p) return
+    await db.itensLista.add(await novoItemLista(p, 1, null))
+    await db.eventosDespensa.add(evento(a, 'aceito'))
+  })
+const dispensarAviso = (a: AvisoRef) =>
+  tx(async () => {
+    const e = evento(a, 'dispensado')
+    await db.eventosDespensa.add(e)
+    return e.id
+  })
+const desfazerEvento = (id: string) => tx(() => soft(db.eventosDespensa, id, agora()))
+
 // Contrato que a UI usa. Para trocar o backend (Ramo A), reimplemente este objeto.
 export const repo = {
   iniciar,
@@ -318,6 +405,7 @@ export const repo = {
   backupPreMigracao,
   definirOrcamento,
   finalizarFeira,
+  reabrirFeira,
   adicionarItemLista,
   adicionarSugestao,
   adicionarHortiLista,
@@ -327,9 +415,15 @@ export const repo = {
   editarCompra,
   editarCompraHorti,
   removerItemLista,
+  restaurarItemLista,
   removerCompra,
+  restaurarCompra,
   listaParaCompra,
+  desfazerListaParaCompra,
   compraParaLista,
   salvarHortiRef,
+  aceitarAviso,
+  dispensarAviso,
+  desfazerEvento,
 }
 export type Repositorio = typeof repo

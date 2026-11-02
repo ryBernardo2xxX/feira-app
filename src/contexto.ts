@@ -5,7 +5,10 @@ export type Ctx = {
   prod: Map<string, Produto>
   feira: Feira
   catalogo: Catalogo
-  avisar: (msg: string) => void
+  // desfazer (opcional) mostra o botão "Desfazer"; devolver false cancela a mensagem "Desfeito"
+  avisar: (msg: string, desfazer?: () => unknown) => void
+  // dia local atual (ver diaLocal em dominio/despensa)
+  hoje: number
   ordenacao: 'padrao' | 'alfabetica'
   setOrdenacao: (v: 'padrao' | 'alfabetica') => void
   colapsadas: Record<string, Record<string, boolean>>

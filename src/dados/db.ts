@@ -1,5 +1,6 @@
 import Dexie, { type Table } from 'dexie'
-import type { Compra, Dados, Feira, HortiRef, ItemLista, Produto } from '../dominio/tipos'
+import { origemDesconhecida } from '../dominio/migracao'
+import type { Compra, Dados, EventoDespensa, Feira, HortiRef, ItemLista, Produto } from '../dominio/tipos'
 
 export type Meta = { chave: string; valor: unknown }
 export class FeiraDB extends Dexie {
@@ -8,6 +9,7 @@ export class FeiraDB extends Dexie {
   feiras!: Table<Feira, string>
   compras!: Table<Compra, string>
   hortiRefs!: Table<HortiRef, string>
+  eventosDespensa!: Table<EventoDespensa, string>
   meta!: Table<Meta, string>
   constructor() {
     super('feira')
@@ -19,6 +21,25 @@ export class FeiraDB extends Dexie {
       hortiRefs: 'id',
       meta: 'chave',
     })
+    // v2 (F2): preço-alvo e alternativas no produto, origem da compra e eventos de despensa
+    this.version(2)
+      .stores({ eventosDespensa: 'id,produtoId' })
+      .upgrade(async (t) => {
+        const feiras = new Map((await t.table<Feira>('feiras').toArray()).map((f) => [f.id, f]))
+        await t
+          .table<Produto>('produtos')
+          .toCollection()
+          .modify((p) => {
+            p.precoAlvoCent ??= null
+            p.alternativas ??= []
+          })
+        await t
+          .table<Compra>('compras')
+          .toCollection()
+          .modify((c) => {
+            c.foraDaLista = origemDesconhecida(c, feiras.get(c.feiraId)) ? null : (c.foraDaLista ?? false)
+          })
+      })
   }
 }
 export const db = new FeiraDB()
@@ -29,5 +50,6 @@ export const gravarDados = async (d: Dados) => {
     db.feiras.bulkPut(d.feiras),
     db.compras.bulkPut(d.compras),
     db.hortiRefs.bulkPut(d.hortiRefs),
+    db.eventosDespensa.bulkPut(d.eventosDespensa),
   ])
 }

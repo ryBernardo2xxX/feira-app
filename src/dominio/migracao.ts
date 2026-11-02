@@ -5,6 +5,7 @@ import {
   type Base,
   type Compra,
   type Dados,
+  type EventoDespensa,
   type Feira,
   type HortiRef,
   type ItemLista,
@@ -32,7 +33,14 @@ export function parseDataBR(s: unknown): string | null {
   return isNaN(d.getTime()) ? null : d.toISOString()
 }
 
-// Converte backups/localStorage v1–v4 (formato da v0) para o modelo sync-ready (v5).
+// A migração da v0 grava as compras com createdAt igual ao da feira (ou ao do fechamento dela);
+// compras feitas depois, no app, sempre têm createdAt estritamente entre os dois.
+export const origemDesconhecida = (
+  c: Pick<Compra, 'createdAt'>,
+  f?: Pick<Feira, 'createdAt' | 'fechadaEm'>,
+) => !!f && (c.createdAt === f.createdAt || c.createdAt === f.fechadaEm)
+
+// Converte backups/localStorage v1–v4 (formato da v0) para o modelo atual.
 export function migrarBackup(raw: unknown, ctx: CtxMig): Dados {
   const d = (raw && typeof raw === 'object' ? raw : {}) as R
   const { agora, deviceId, novoId } = ctx
@@ -63,6 +71,8 @@ export function migrarBackup(raw: unknown, ctx: CtxMig): Dados {
         categoria: cat ?? (horti ? 'Hortifruti' : null),
         unidadeBase: horti ? 'kg' : 'un',
         hortifrutiId: null,
+        precoAlvoCent: null,
+        alternativas: [],
       }
       produtos.set(chave, p)
     } else if (cat) p.categoria = cat
@@ -82,7 +92,7 @@ export function migrarBackup(raw: unknown, ctx: CtxMig): Dados {
       pesoG: horti ? pos(i.pesoTotalGramas) : null,
       precoKgCent: kg ? emCent(kg) : null,
       variacaoCent: null,
-      foraDaLista: false,
+      foraDaLista: null,
     }
   }
 
@@ -164,23 +174,39 @@ export function migrarBackup(raw: unknown, ctx: CtxMig): Dados {
         })
       : []
 
-  return { produtos: [...produtos.values()], itensLista, feiras, compras, hortiRefs }
+  return { produtos: [...produtos.values()], itensLista, feiras, compras, hortiRefs, eventosDespensa: [] }
 }
 
-// Lê um backup de qualquer versão: v1–v4 migram; v5 é aceito como está; versão futura é recusada.
+// v5 (F1) → v6 (F2): campos novos no produto, sem eventos, e origem desconhecida nas compras vindas da v0.
+function atualizarV5(d: Omit<Dados, 'eventosDespensa'>): Dados {
+  const fs = new Map(d.feiras.map((f) => [f.id, f]))
+  return {
+    ...d,
+    eventosDespensa: [],
+    produtos: d.produtos.map((p) => ({ ...p, precoAlvoCent: null, alternativas: [] })),
+    compras: d.compras.map((c) => ({
+      ...c,
+      foraDaLista: origemDesconhecida(c, fs.get(c.feiraId)) ? null : c.foraDaLista,
+    })),
+  }
+}
+
+// Lê um backup de qualquer versão: v1–v4 migram; v5 sobe para v6; v6 é lido como está; versão futura é recusada.
 export function lerBackup(raw: unknown, ctx: CtxMig): Dados {
   const d = (raw && typeof raw === 'object' ? raw : {}) as R
   const v = num(d.versaoDados)
   if (v > VERSAO_DADOS) throw new Error('Backup de uma versão mais nova que este app.')
-  if (v < VERSAO_DADOS) return migrarBackup(raw, ctx)
+  if (v < 5) return migrarBackup(raw, ctx)
   const x = <T>(k: string) => arr(d[k]) as unknown as T[]
-  const dados: Dados = {
-    produtos: x('produtos'),
-    itensLista: x('itensLista'),
-    feiras: x('feiras'),
-    compras: x('compras'),
-    hortiRefs: x('hortiRefs'),
+  const base = {
+    produtos: x<Produto>('produtos'),
+    itensLista: x<ItemLista>('itensLista'),
+    feiras: x<Feira>('feiras'),
+    compras: x<Compra>('compras'),
+    hortiRefs: x<HortiRef>('hortiRefs'),
   }
+  const dados: Dados =
+    v === 5 ? atualizarV5(base) : { ...base, eventosDespensa: x<EventoDespensa>('eventosDespensa') }
   if (!dados.feiras.some((f) => !f.fechadaEm && !f.deletedAt)) {
     dados.feiras.push({
       id: ctx.novoId(),

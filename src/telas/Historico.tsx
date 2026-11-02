@@ -1,9 +1,11 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { brl } from '../dominio/dinheiro'
 import { totalCompras } from '../dominio/subtotais'
 import type { Ctx } from '../contexto'
 
 export default function Historico({ c }: { c: Ctx }) {
+  const nav = useNavigate()
   const [ver, setVer] = useState(false)
   const fechadas = c.dados.feiras
     .filter((f) => f.fechadaEm)
@@ -29,6 +31,9 @@ export default function Historico({ c }: { c: Ctx }) {
                     {f.orcamentoCent ? ` / Orçamento: ${brl(f.orcamentoCent)}` : ''}
                   </div>
                   <div className="categoria">{cs.length} itens</div>
+                  <button type="button" className="botao-secundario" onClick={() => nav(`/feira/${f.id}`)}>
+                    Ver resumo
+                  </button>
                 </div>
               )
             })

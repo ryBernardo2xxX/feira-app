@@ -20,6 +20,8 @@ const prod = (id: string, nome: string, marca: string | null = null): Produto =>
   unidadeBase: 'un',
   chave: id,
   hortifrutiId: null,
+  precoAlvoCent: null,
+  alternativas: [],
 })
 const compra = (
   id: string,

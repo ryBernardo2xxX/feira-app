@@ -1,0 +1,44 @@
+.dentro {
+  color: var(--pri);
+  font-weight: 700;
+  font-size: 13px;
+}
+.acima {
+  color: var(--warn);
+  font-weight: 700;
+  font-size: 13px;
+}
+.alts {
+  font-size: 13px;
+  color: var(--mut);
+  margin-top: 2px;
+}
+.grande .dentro,
+.grande .acima {
+  font-size: 16px;
+}
+.grande .alts {
+  font-size: 15px;
+}
+.linha {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.linha small {
+  color: var(--mut);
+  font-weight: 400;
+}
+.sub {
+  font-size: 13px;
+  color: var(--mut);
+  margin: 2px 0 8px;
+}
+.h3 {
+  font-size: 15px;
+  margin: 18px 0 4px;
+  color: var(--pri);
+}
